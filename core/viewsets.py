@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from django.contrib.auth import authenticate, login
 from rest_framework.response import Response
 from rest_framework import status
+from .models import *
 
 
 
@@ -47,3 +48,19 @@ class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Retri
             return Response({'message': 'Login successful', 'user': UserSerializer(user).data, 'token': token.key})
         else:
             return Response({'error': 'Invalid username or password'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return StaffProfile.objects.none()
+        
+        queryset = super().get_queryset()
+        user = self.request.user # I Will Use this to Check for StaffProfile in Daycare
+
+        return queryset
+    
+    

@@ -1,3 +1,18 @@
 from django.contrib import admin
+from core.models import *
 
 # Register your models here.
+@admin.register(StaffProfile)
+class StaffProfileAdmin(admin.ModelAdmin):
+    list_display = ('user_full_name', 'user_username', 'role', 'phone')
+    list_filter = ('role',)  # Add filters as needed
+    search_fields = ('user__first_name', 'user__last_name', 'user__username')
+    raw_id_fields = ('user',)  # Use raw_id_fields for ForeignKey fields if needed
+
+    def user_full_name(self, obj):
+        return obj.user.get_full_name()
+    user_full_name.short_description = 'Full Name'  # Customize column header
+
+    def user_username(self, obj):
+        return obj.user.username
+    user_username.short_description = 'Username'  # Customize column header

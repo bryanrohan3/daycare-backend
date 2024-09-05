@@ -6,6 +6,7 @@ from django.contrib import admin
 # Define the router for standard CRUD endpoints
 api_router = DefaultRouter()
 api_router.register(r'users', viewsets.UserViewSet)
+api_router.register(r'staff-profile', viewsets.StaffProfileViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
