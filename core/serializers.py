@@ -6,10 +6,11 @@ from .models import *
 
 class UserSerializer(serializers.ModelSerializer):
     token = serializers.SerializerMethodField()
+    account_type = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'password', 'token', 'is_active']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'password', 'token', 'is_active', 'account_type']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -19,6 +20,13 @@ class UserSerializer(serializers.ModelSerializer):
     def get_token(self, obj):
         token, created = Token.objects.get_or_create(user=obj)
         return token.key
+    
+    def get_account_type(self, user):
+        if hasattr(user, 'staffprofile'):
+            return 'staff'
+        elif hasattr(user, 'customerprofile'):
+            return 'customer'
+        return 'unknown'
 
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
