@@ -7,6 +7,7 @@ from django.contrib import admin
 api_router = DefaultRouter()
 api_router.register(r'users', viewsets.UserViewSet)
 api_router.register(r'staff-profile', viewsets.StaffProfileViewSet)
+api_router.register(r'customer-profile', viewsets.CustomerProfileViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

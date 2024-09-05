@@ -63,4 +63,9 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
 
         return queryset
     
+
+class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
+    queryset = CustomerProfile.objects.all()
+    serializer_class = CustomerProfileSerializer
+
     

@@ -16,3 +16,17 @@ class StaffProfileAdmin(admin.ModelAdmin):
     def user_username(self, obj):
         return obj.user.username
     user_username.short_description = 'Username'  # Customize column header
+
+
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = ('user_full_name', 'user_username', 'phone')
+    search_fields = ('user__first_name', 'user__last_name', 'user__username', 'phone')
+
+    def user_full_name(self, obj):
+        return obj.user.get_full_name()
+    user_full_name.short_description = 'Full Name'  # Customize column header
+
+    def user_username(self, obj):
+        return obj.user.username
+    user_username.short_description = 'Username'  # Customize column header
