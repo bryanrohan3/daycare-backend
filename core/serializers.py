@@ -72,3 +72,18 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         customer_profile = CustomerProfile.objects.create(user=user, **validated_data)
         
         return customer_profile
+    
+
+class DaycareSerializer(serializers.ModelSerializer):
+    staff = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Daycare
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff']
+
+    def get_staff(self, obj):
+        if obj.staff:
+            return StaffProfileSerializer(obj.staff).data
+        return None
+    
+    

@@ -12,7 +12,7 @@ class StaffProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     phone = models.CharField(max_length=15)
-    is_active = models.BooleanField(default=True) 
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.user.username}) - Role: {self.get_role_display()}"
@@ -22,6 +22,9 @@ class StaffProfile(models.Model):
     
 
 class CustomerProfile(models.Model):
+    """
+    Customer Profile Can Only Be Created By Staff (Owner or Employee)
+    """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # pets -> A Customer can have Many Pets and a Pet can have Many Customers
     # Customer has Pet A, Pet B -> Pet A belongs to Customer A and Customer B, Pet B belongs to Customer A
@@ -30,3 +33,30 @@ class CustomerProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.user.username}) - Phone: {self.phone}"
+
+
+# TODO:
+# - Owner Creates Daycare ("O" not "E")
+# - Daycare Details -> Name, Address, Phone, Email, Opening Hours, Pet Types, Capacitiy (hidden to public)
+class Daycare(models.Model):
+    AUSTRALIAN_STATES = [
+        ('NSW', 'New South Wales'),
+        ('VIC', 'Victoria'),
+        ('QLD', 'Queensland'),
+        ('SA', 'South Australia'),
+        ('WA', 'Western Australia'),
+        ('TAS', 'Tasmania'),
+        ('NT', 'Northern Territory'),
+        ('ACT', 'Australian Capital Territory'),
+    ]
+
+    daycare_name = models.CharField(max_length=100)
+    stree_address = models.CharField(max_length=100)
+    suburb = models.CharField(max_length=100)
+    state = models.CharField(max_length=3, choices=AUSTRALIAN_STATES)
+    postcode = models.CharField(max_length=4)
+    phone = models.CharField(max_length=15)
+    email = models.EmailField()
+    # capacity = models.IntegerField() -> this will change though from Monday to Sunday?
+    # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
+    # Opening Hours -> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (Timings?)

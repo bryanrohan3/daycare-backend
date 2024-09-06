@@ -84,4 +84,22 @@ class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, m
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+
+class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
+    queryset = Daycare.objects.all()
+    serializer_class = DaycareSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Daycare.objects.none()
+
+        if user.is_authenticated:
+            try:
+                staff_profile = user.staffprofile
+                queryset = staff_profile.daycares.all()
+            except StaffProfile.DoesNotExist:
+                pass
+
+        return queryset
+    
     
