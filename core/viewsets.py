@@ -68,4 +68,20 @@ class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, m
     queryset = CustomerProfile.objects.all()
     serializer_class = CustomerProfileSerializer
 
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return CustomerProfile.objects.none()
+        
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        return queryset
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            return Response({'error': 'You do not have permission to view this customer profile.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
     
