@@ -75,15 +75,34 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     
 
 class DaycareSerializer(serializers.ModelSerializer):
-    staff = serializers.SerializerMethodField()
+    # staff = serializers.SerializerMethodField()
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff']
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email']
 
-    def get_staff(self, obj):
-        if obj.staff:
-            return StaffProfileSerializer(obj.staff).data
-        return None
+    # def get_staff(self, obj):
+    #     if obj.staff:
+    #         return StaffProfileSerializer(obj.staff).data
+    #     return None
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        
+        # user is authenticated and has a staff profile
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication credentials were not provided.")
+
+        try:
+            # creator is an Owner ('O')
+            creator_profile = StaffProfile.objects.get(user=request.user)
+            if creator_profile.role != 'O':
+                raise serializers.ValidationError("Only Owners can create Daycare entries.")
+        except StaffProfile.DoesNotExist:
+            raise serializers.ValidationError("Only Owners can create Daycare entries.")
+
+        # If the user is an Owner, create the Daycare
+        daycare = Daycare.objects.create(**validated_data)
+        return daycare
     
     

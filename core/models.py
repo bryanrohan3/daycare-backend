@@ -51,7 +51,7 @@ class Daycare(models.Model):
     ]
 
     daycare_name = models.CharField(max_length=100)
-    stree_address = models.CharField(max_length=100)
+    street_address = models.CharField(max_length=100)
     suburb = models.CharField(max_length=100)
     state = models.CharField(max_length=3, choices=AUSTRALIAN_STATES)
     postcode = models.CharField(max_length=4)

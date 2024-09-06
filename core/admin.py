@@ -30,3 +30,12 @@ class CustomerProfileAdmin(admin.ModelAdmin):
     def user_username(self, obj):
         return obj.user.username
     user_username.short_description = 'Username'  # Customize column header
+
+
+@admin.register(Daycare)
+class DaycareAdmin(admin.ModelAdmin):
+    list_display = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
+    list_filter = ('state',)  # Add filters as needed
+    search_fields = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
+
+
