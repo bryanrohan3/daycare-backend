@@ -46,9 +46,14 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Daycare)
 class DaycareAdmin(admin.ModelAdmin):
-    list_display = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
+    list_display = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'owner_list')
     list_filter = ('state',)  # Add filters as needed
     search_fields = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
     inlines = [StaffProfileInline]
+
+    def owner_list(self, obj):
+        owners = StaffProfile.objects.filter(daycares=obj, role='O')
+        return ", ".join(owner.user.get_full_name() for owner in owners)
+    owner_list.short_description = 'Owners'
 
 

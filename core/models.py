@@ -58,6 +58,7 @@ class Daycare(models.Model):
     postcode = models.CharField(max_length=4)
     phone = models.CharField(max_length=15)
     email = models.EmailField()
+    # is_active = models.BooleanField(default=True) -> add this in next migration to ensure daycare is active or not (soft delete)
     # capacity = models.IntegerField() -> this will change though from Monday to Sunday?
     # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
     # Opening Hours -> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (Timings?)

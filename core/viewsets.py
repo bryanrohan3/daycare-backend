@@ -102,4 +102,8 @@ class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
 
         return queryset
     
-    
+    def get_serializer_context(self):
+        # Ensure that the request is included in the context
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context

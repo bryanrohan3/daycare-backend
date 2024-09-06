@@ -84,16 +84,26 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     
 
 class DaycareSerializer(serializers.ModelSerializer):
-    # staff = serializers.SerializerMethodField()
+    staff = serializers.SerializerMethodField()
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email']
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff'] 
 
-    # def get_staff(self, obj):
-    #     if obj.staff:
-    #         return StaffProfileSerializer(obj.staff).data
-    #     return None
+    def get_staff(self, obj):
+        request = self.context.get('request')
+        
+        if not request:
+            return []  # Return empty list if request is not found
+
+        role = request.query_params.get('role')
+
+        if role and role in ['O', 'E']:
+            staff = StaffProfile.objects.filter(daycares=obj, role=role)
+        else:
+            staff = StaffProfile.objects.filter(daycares=obj)
+
+        return StaffProfileSerializer(staff, many=True).data
     
     def create(self, validated_data):
         request = self.context.get('request')
@@ -112,6 +122,10 @@ class DaycareSerializer(serializers.ModelSerializer):
 
         # If the user is an Owner, create the Daycare
         daycare = Daycare.objects.create(**validated_data)
+
+        # Add the owner to the Daycare
+        creator_profile.daycares.add(daycare)
+
         return daycare
     
     
