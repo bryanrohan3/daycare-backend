@@ -35,10 +35,19 @@ class UserLoginSerializer(serializers.Serializer):
 
 class StaffProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    daycares = serializers.SerializerMethodField()
+    daycares_names = serializers.SerializerMethodField()
 
     class Meta:
         model = StaffProfile
-        fields = ['id', 'user', 'role', 'phone', 'is_active']
+        fields = ['id', 'user', 'role', 'phone', 'is_active', 'daycares', 'daycares_names']
+
+    def get_daycares(self, obj):
+        return obj.daycares.values_list('id', flat=True)
+    
+    def get_daycares_names(self, instance):
+        # Retrieve the dealerships associated with the profile
+        return DaycareSerializer(instance.daycares.all(), many=True).data
 
     def create(self, validated_data):
         request = self.context.get('request')
