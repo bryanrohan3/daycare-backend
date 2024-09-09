@@ -65,6 +65,14 @@ class StaffProfileSerializer(serializers.ModelSerializer):
         staff_profile = StaffProfile.objects.create(user=user, **validated_data)
         
         return staff_profile
+    
+
+class BasicStaffProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+
+    class Meta:
+        model = StaffProfile
+        fields = ['user', 'role', 'phone', 'is_active']
         
 
 
@@ -103,7 +111,7 @@ class DaycareSerializer(serializers.ModelSerializer):
         else:
             staff = StaffProfile.objects.filter(daycares=obj)
 
-        return StaffProfileSerializer(staff, many=True).data
+        return BasicStaffProfileSerializer(staff, many=True).data
     
     def create(self, validated_data):
         request = self.context.get('request')
