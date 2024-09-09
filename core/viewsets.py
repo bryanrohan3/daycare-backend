@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate, login
 from rest_framework.response import Response
 from rest_framework import status
 from .models import *
+from .permissions import *
 
 
 class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin):
@@ -60,6 +61,18 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
         user = self.request.user # I Will Use this to Check for StaffProfile in Daycare
 
         return queryset
+    
+    @action(detail=False, methods=['get'], url_path='current', permission_classes=[IsStaff])
+    def current(self, request):
+        """
+        Retrieve the dealer profile of the currently authenticated user.
+        """
+        user = request.user
+        if hasattr(user, 'staffprofile'):
+            serializer = self.get_serializer(user.staffprofile)
+            return Response(serializer.data)
+        return Response({'detail': 'Staff profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    
     
 
 class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
