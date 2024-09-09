@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User, AbstractUser
 from rest_framework.authtoken.models import Token
+from .utils.pet_types import PET_TYPES
+
 
 # Create your models here.
 class StaffProfile(models.Model):
@@ -58,7 +60,8 @@ class Daycare(models.Model):
     postcode = models.CharField(max_length=4)
     phone = models.CharField(max_length=15)
     email = models.EmailField()
-    # is_active = models.BooleanField(default=True) -> add this in next migration to ensure daycare is active or not (soft delete)
-    # capacity = models.IntegerField() -> this will change though from Monday to Sunday?
+    is_active = models.BooleanField(default=True)
+    capacity = models.PositiveIntegerField(default=0) 
+    # capacity -> this will change though from Monday to Sunday?
     # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
     # Opening Hours -> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (Timings?)

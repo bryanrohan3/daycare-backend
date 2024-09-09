@@ -73,7 +73,6 @@ class BasicStaffProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffProfile
         fields = ['user', 'role', 'phone', 'is_active']
-        
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
@@ -96,7 +95,7 @@ class DaycareSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff'] 
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity'] 
 
     def get_staff(self, obj):
         request = self.context.get('request')
@@ -135,5 +134,3 @@ class DaycareSerializer(serializers.ModelSerializer):
         creator_profile.daycares.add(daycare)
 
         return daycare
-    
-    
