@@ -43,13 +43,18 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         return obj.user.username
     user_username.short_description = 'Username'  # Customize column header
 
+class OpeningHoursInline(admin.TabularInline):
+    model = OpeningHours
+    extra = 1
+    fields = ('day', 'from_hour', 'to_hour', 'closed')
+    verbose_name = 'Opening Hour'
+    verbose_name_plural = 'Opening Hours'
 
-@admin.register(Daycare)
 class DaycareAdmin(admin.ModelAdmin):
     list_display = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'owner_list')
-    list_filter = ('state',)  # Add filters as needed
+    list_filter = ('state',)
     search_fields = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
-    inlines = [StaffProfileInline]
+    inlines = [OpeningHoursInline]
 
     def owner_list(self, obj):
         owners = StaffProfile.objects.filter(daycares=obj, role='O')
@@ -57,3 +62,4 @@ class DaycareAdmin(admin.ModelAdmin):
     owner_list.short_description = 'Owners'
 
 
+admin.site.register(Daycare, DaycareAdmin)

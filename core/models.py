@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User, AbstractUser
 from rest_framework.authtoken.models import Token
 from .utils.pet_types import PET_TYPES
+from django.core.exceptions import ValidationError
 
 
 # Create your models here.
@@ -62,6 +63,36 @@ class Daycare(models.Model):
     email = models.EmailField()
     is_active = models.BooleanField(default=True)
     capacity = models.PositiveIntegerField(default=0) 
-    # capacity -> this will change though from Monday to Sunday?
     # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
-    # Opening Hours -> Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday (Timings?)
+
+
+class OpeningHours(models.Model):
+    DAYS = [
+        (1, 'Monday'),
+        (2, 'Tuesday'),
+        (3, 'Wednesday'),
+        (4, 'Thursday'),
+        (5, 'Friday'),
+        (6, 'Saturday'),
+        (7, 'Sunday'),
+    ]
+
+    daycare = models.ForeignKey(Daycare, related_name='opening_hours', on_delete=models.CASCADE)
+    day = models.PositiveSmallIntegerField(choices=DAYS)
+    from_hour = models.TimeField(blank=True, null=True)
+    to_hour = models.TimeField(blank=True, null=True)
+    closed = models.BooleanField(default=False)
+
+    def clean(self):
+        if self.closed:
+            if self.from_hour or self.to_hour:
+                raise ValidationError("If the daycare is closed, opening and closing hours should not be set.")
+        elif not self.from_hour or not self.to_hour:
+            raise ValidationError("If the daycare is not closed, both opening and closing hours must be set.")
+        elif self.from_hour >= self.to_hour:
+            raise ValidationError("From time must be before To time")
+
+    def __str__(self):
+        if self.closed:
+            return f"{self.get_day_display()}: Closed"
+        return f"{self.get_day_display()}: {self.from_hour} - {self.to_hour}"

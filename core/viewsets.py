@@ -10,8 +10,6 @@ from rest_framework import status
 from .models import *
 
 
-
-# Create your views here.
 class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin):
     """
     ViewSet for managing users.

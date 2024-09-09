@@ -90,12 +90,24 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         return customer_profile
     
 
+class OpeningHoursSerializer(serializers.ModelSerializer):
+    day_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OpeningHours
+        fields = ['day', 'day_name', 'from_hour', 'to_hour', 'closed']
+
+    def get_day_name(self, obj):
+        return obj.get_day_display()
+
+
 class DaycareSerializer(serializers.ModelSerializer):
     staff = serializers.SerializerMethodField()
+    opening_hours = OpeningHoursSerializer(many=True)
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity'] 
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours'] 
 
     def get_staff(self, obj):
         request = self.context.get('request')
@@ -113,24 +125,25 @@ class DaycareSerializer(serializers.ModelSerializer):
         return BasicStaffProfileSerializer(staff, many=True).data
     
     def create(self, validated_data):
+        opening_hours_data = validated_data.pop('opening_hours', [])
+
         request = self.context.get('request')
         
-        # user is authenticated and has a staff profile
         if not request or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication credentials were not provided.")
 
         try:
-            # creator is an Owner ('O')
             creator_profile = StaffProfile.objects.get(user=request.user)
             if creator_profile.role != 'O':
                 raise serializers.ValidationError("Only Owners can create Daycare entries.")
         except StaffProfile.DoesNotExist:
             raise serializers.ValidationError("Only Owners can create Daycare entries.")
 
-        # If the user is an Owner, create the Daycare
         daycare = Daycare.objects.create(**validated_data)
 
-        # Add the owner to the Daycare
         creator_profile.daycares.add(daycare)
+
+        for oh_data in opening_hours_data:
+            OpeningHours.objects.create(daycare=daycare, **oh_data)
 
         return daycare
