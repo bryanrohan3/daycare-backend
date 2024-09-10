@@ -102,19 +102,31 @@ class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Daycare.objects.none()
+        queryset = Daycare.objects.all()  # Default queryset for all users
 
         if user.is_authenticated:
-            try:
-                staff_profile = user.staffprofile
-                queryset = staff_profile.daycares.all()
-            except StaffProfile.DoesNotExist:
-                pass
+            if hasattr(user, 'staffprofile'):
+                try:
+                    staff_profile = user.staffprofile
+                    # Staff filtering: only show daycares they work for
+                    queryset = staff_profile.daycares.all()
+                except StaffProfile.DoesNotExist:
+                    pass
+
+        # Apply search filter if present
+        search_term = self.request.query_params.get('search', None)
+        if search_term:
+            queryset = queryset.filter(daycare_name__icontains=search_term)
 
         return queryset
-    
+
+    def get_serializer_class(self):
+        # Use CustomerDaycareSerializer if search parameter is present
+        if self.request.query_params.get('search'):
+            return CustomerDaycareSerializer
+        return super().get_serializer_class()
+
     def get_serializer_context(self):
-        # Ensure that the request is included in the context
         context = super().get_serializer_context()
         context['request'] = self.request
         return context

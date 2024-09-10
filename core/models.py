@@ -64,6 +64,7 @@ class Daycare(models.Model):
     is_active = models.BooleanField(default=True)
     capacity = models.PositiveIntegerField(default=0) 
     # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
+    # pet type model? -> or just pet model
 
 
 class OpeningHours(models.Model):

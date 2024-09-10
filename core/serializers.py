@@ -154,3 +154,11 @@ class DaycareSerializer(serializers.ModelSerializer):
                 OpeningHours.objects.create(daycare=instance, **oh_data)
 
         return instance
+
+
+class CustomerDaycareSerializer(serializers.ModelSerializer):
+    opening_hours = OpeningHoursSerializer(many=True)
+
+    class Meta:
+        model = Daycare
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'opening_hours']
