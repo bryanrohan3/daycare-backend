@@ -107,43 +107,50 @@ class DaycareSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours'] 
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours']
 
     def get_staff(self, obj):
         request = self.context.get('request')
-        
         if not request:
-            return []  # Return empty list if request is not found
-
+            return []
         role = request.query_params.get('role')
-
         if role and role in ['O', 'E']:
             staff = StaffProfile.objects.filter(daycares=obj, role=role)
         else:
             staff = StaffProfile.objects.filter(daycares=obj)
-
         return BasicStaffProfileSerializer(staff, many=True).data
-    
+
     def create(self, validated_data):
         opening_hours_data = validated_data.pop('opening_hours', [])
-
         request = self.context.get('request')
-        
         if not request or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication credentials were not provided.")
-
         try:
             creator_profile = StaffProfile.objects.get(user=request.user)
             if creator_profile.role != 'O':
                 raise serializers.ValidationError("Only Owners can create Daycare entries.")
         except StaffProfile.DoesNotExist:
             raise serializers.ValidationError("Only Owners can create Daycare entries.")
-
         daycare = Daycare.objects.create(**validated_data)
-
         creator_profile.daycares.add(daycare)
-
         for oh_data in opening_hours_data:
             OpeningHours.objects.create(daycare=daycare, **oh_data)
-
         return daycare
+
+    def update(self, instance, validated_data):
+        opening_hours_data = validated_data.pop('opening_hours', [])
+
+        # Update the fields of the Daycare instance
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Handle the nested OpeningHours
+        if opening_hours_data:
+            # Remove existing opening hours if any
+            instance.opening_hours.all().delete()
+            # Add new opening hours
+            for oh_data in opening_hours_data:
+                OpeningHours.objects.create(daycare=instance, **oh_data)
+
+        return instance
