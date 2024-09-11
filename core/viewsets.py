@@ -132,13 +132,21 @@ class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         return context
     
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     """
     A viewset for viewing and editing product instances.
     """
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'POST']:
+            # Only allow owners to create products
+            permission_classes = [IsOwner]
+        else:
+            permission_classes = [IsStaff]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         """
@@ -181,6 +189,13 @@ class ProductViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Check if the user is an owner
+        if staff_profile.role != 'O':
+            return Response(
+                {"error": "You do not have permission to create a product."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
 
         if int(daycare_id) not in user_daycare_ids:
@@ -189,5 +204,4 @@ class ProductViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Proceed with the creation if all checks pass
         return super().create(request, *args, **kwargs)
