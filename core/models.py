@@ -97,3 +97,18 @@ class OpeningHours(models.Model):
         if self.closed:
             return f"{self.get_day_display()}: Closed"
         return f"{self.get_day_display()}: {self.from_hour} - {self.to_hour}"
+    
+
+class Product(models.Model):
+    """
+    Daycare can have many Products, One Product can have one Daycare
+    """
+    daycare = models.ForeignKey(Daycare, related_name='products', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    price = models.DecimalField(max_digits=5, decimal_places=2)
+    capacity = models.PositiveIntegerField(null=True, blank=True)  # Optional capacity
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.daycare.daycare_name}"

@@ -50,11 +50,20 @@ class OpeningHoursInline(admin.TabularInline):
     verbose_name = 'Opening Hour'
     verbose_name_plural = 'Opening Hours'
 
+
+class ProductsInline(admin.TabularInline):  # or use admin.StackedInline
+    model = Product
+    extra = 1
+    fields = ('name', 'description', 'price', 'capacity')
+    verbose_name = 'Product'
+    verbose_name_plural = 'Products'
+
+
 class DaycareAdmin(admin.ModelAdmin):
     list_display = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'owner_list')
     list_filter = ('state',)
     search_fields = ('daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email')
-    inlines = [OpeningHoursInline]
+    inlines = [OpeningHoursInline, ProductsInline]
 
     def owner_list(self, obj):
         owners = StaffProfile.objects.filter(daycares=obj, role='O')
@@ -63,3 +72,11 @@ class DaycareAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Daycare, DaycareAdmin)
+
+
+class ProductsAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description', 'price', 'capacity', 'daycare__daycare_name')
+    list_filter = ('daycare',)
+    search_fields = ('name', 'description')
+
+admin.site.register(Product, ProductsAdmin)

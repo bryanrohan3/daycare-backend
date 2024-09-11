@@ -130,3 +130,64 @@ class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+
+class ProductViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing product instances.
+    """
+    serializer_class = ProductSerializer
+    queryset = Product.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Restrict the queryset to products that belong to daycares the authenticated user works at.
+        """
+        request = self.request
+        if not request.user.is_authenticated:
+            return Product.objects.none()
+
+        # Get the daycares associated with the authenticated user
+        staff_profile = StaffProfile.objects.get(user=request.user)
+        user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
+
+        # Filter products to only include those that belong to the user's associated daycares
+        return Product.objects.filter(daycare__id__in=user_daycare_ids)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Handle product creation and validate that the user is associated with the daycare.
+        """
+        daycare_id = request.data.get('daycare')
+
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication credentials were not provided."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if not daycare_id:
+            return Response(
+                {"error": "Daycare ID must be provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            staff_profile = StaffProfile.objects.get(user=request.user)
+        except StaffProfile.DoesNotExist:
+            return Response(
+                {"error": "Staff profile not found."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
+
+        if int(daycare_id) not in user_daycare_ids:
+            return Response(
+                {"error": "You cannot create a product for a daycare you are not associated with."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Proceed with the creation if all checks pass
+        return super().create(request, *args, **kwargs)
