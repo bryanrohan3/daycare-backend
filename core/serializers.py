@@ -113,10 +113,14 @@ class DaycareSerializer(serializers.ModelSerializer):
     staff = serializers.SerializerMethodField()
     opening_hours = OpeningHoursSerializer(many=True)
     products = ProductSerializer(many=True, read_only=True)
+    pet_types_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours', 'products']
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours', 'products', 'pet_types_display']
+
+    def get_pet_types_display(self, obj):
+        return obj.get_pet_types_display()
 
     def get_staff(self, obj):
         request = self.context.get('request')

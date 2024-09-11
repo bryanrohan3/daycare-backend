@@ -63,8 +63,12 @@ class Daycare(models.Model):
     email = models.EmailField()
     is_active = models.BooleanField(default=True)
     capacity = models.PositiveIntegerField(default=0) 
+    pet_types = models.JSONField(default=list)
     # Pet Types -> Dog, Cat, Bird, Fish, Reptile, etc.
-    # pet type model? -> or just pet model
+
+    def get_pet_types_display(self):
+        # Returns the display names of the pet types
+        return [PET_TYPES[pet_type_id] for pet_type_id in self.pet_types]
 
 
 class OpeningHours(models.Model):
