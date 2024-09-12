@@ -58,20 +58,30 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
             return StaffProfile.objects.none()
         
         queryset = super().get_queryset()
-        user = self.request.user # I Will Use this to Check for StaffProfile in Daycare
-
+        user = self.request.user
+        
+        if hasattr(user, 'staffprofile'):
+            staff_profile = user.staffprofile
+            if staff_profile.role == 'O':
+                # Owners can see all staff profiles
+                return queryset
+            else:
+                # Employees can only see their own profile
+                return queryset.filter(user=user)
+        
         return queryset
-    
+
     @action(detail=False, methods=['get'], url_path='current', permission_classes=[IsStaff])
     def current(self, request):
         """
-        Retrieve the dealer profile of the currently authenticated user.
+        Retrieve the staff profile of the currently authenticated user.
         """
         user = request.user
         if hasattr(user, 'staffprofile'):
             serializer = self.get_serializer(user.staffprofile)
             return Response(serializer.data)
         return Response({'detail': 'Staff profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
     
     
 

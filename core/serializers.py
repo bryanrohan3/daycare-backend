@@ -35,36 +35,61 @@ class UserLoginSerializer(serializers.Serializer):
 
 class StaffProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
-    daycares = serializers.SerializerMethodField()
+    daycares = serializers.PrimaryKeyRelatedField(
+        queryset=Daycare.objects.all(),
+        many=True,
+        required=False
+    )
     daycares_names = serializers.SerializerMethodField()
 
     class Meta:
         model = StaffProfile
         fields = ['id', 'user', 'role', 'phone', 'is_active', 'daycares', 'daycares_names']
 
-    def get_daycares(self, obj):
-        return obj.daycares.values_list('id', flat=True)
-    
-    def get_daycares_names(self, instance):
-        # Retrieve the dealerships associated with the profile
-        return DaycareSerializer(instance.daycares.all(), many=True).data
+    def get_daycares_names(self, obj):
+        # Ensure obj.daycares is a queryset
+        return DaycareSerializer(obj.daycares.all(), many=True).data
 
     def create(self, validated_data):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication credentials were not provided.")
 
-        # Ensure the creator is a Management Dealer
         creator_profile = StaffProfile.objects.get(user=request.user)
         if creator_profile.role != 'O':
-            raise serializers.ValidationError("Only Owners can create Employee and Owner users.")
+            raise serializers.ValidationError("Only Owners can create new profiles.")
 
         user_data = validated_data.pop('user')
+        daycares = validated_data.pop('daycares', [])
 
-        user = UserSerializer().create(user_data)
+        # Debugging statements
+        print(f"Creator Profile: {creator_profile}")
+        print(f"Creator Daycare IDs: {creator_profile.daycares.values_list('id', flat=True)}")
+        print(f"Received Daycares: {daycares}")
+
+        # Validate daycares
+        if daycares:
+            # Convert daycares to a list of IDs for validation
+            daycare_ids = [daycare.id for daycare in daycares] if isinstance(daycares[0], Daycare) else daycares
+            creator_daycare_ids = creator_profile.daycares.values_list('id', flat=True)
+            print(f"Daycare IDs for Validation: {daycare_ids}")
+            print(f"Creator Daycare IDs for Validation: {creator_daycare_ids}")
+            if not all(daycare_id in creator_daycare_ids for daycare_id in daycare_ids):
+                print("Daycare validation failed")
+                raise serializers.ValidationError("You can only assign staff to daycares you are associated with.")
+
+        # Create or get the user instance
+        user_serializer = UserSerializer(data=user_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
+
         staff_profile = StaffProfile.objects.create(user=user, **validated_data)
-        
+        staff_profile.daycares.set(daycare_ids)  # Set daycares for the new staff profile
+
         return staff_profile
+
+
+
     
 
 class BasicStaffProfileSerializer(serializers.ModelSerializer):
