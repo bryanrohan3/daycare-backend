@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from .models import *
+from django.utils.dateparse import parse_datetime
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -206,10 +207,23 @@ class RosterSerializer(serializers.ModelSerializer):
     def validate(self, data):
         staff = data.get('staff')
         daycare = data.get('daycare')
+        start_shift = data.get('start_shift')
+        end_shift = data.get('end_shift')
 
         # Check if the staff is associated with the daycare
         if not staff.daycares.filter(id=daycare.id).exists():
             raise serializers.ValidationError("Staff does not work in the specified daycare.")
+        
+        # Check for overlapping shifts
+        existing_shifts = Roster.objects.filter(staff=staff, daycare=daycare, shift_day=data.get('shift_day'))
+        
+        for shift in existing_shifts:
+            existing_start = shift.start_shift
+            existing_end = shift.end_shift
+
+            # Check if the new shift overlaps with any existing shift
+            if (start_shift < existing_end and end_shift > existing_start):
+                raise serializers.ValidationError("Staff already has a shift that overlaps with the new shift.")
 
         return data
 
