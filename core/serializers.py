@@ -48,7 +48,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
 
     def get_daycares_names(self, obj):
         # Ensure obj.daycares is a queryset
-        return DaycareSerializer(obj.daycares.all(), many=True).data
+        return BasicDaycareSerializerStaff(obj.daycares.all(), many=True).data
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -62,20 +62,12 @@ class StaffProfileSerializer(serializers.ModelSerializer):
         user_data = validated_data.pop('user')
         daycares = validated_data.pop('daycares', [])
 
-        # Debugging statements
-        print(f"Creator Profile: {creator_profile}")
-        print(f"Creator Daycare IDs: {creator_profile.daycares.values_list('id', flat=True)}")
-        print(f"Received Daycares: {daycares}")
-
         # Validate daycares
         if daycares:
             # Convert daycares to a list of IDs for validation
             daycare_ids = [daycare.id for daycare in daycares] if isinstance(daycares[0], Daycare) else daycares
             creator_daycare_ids = creator_profile.daycares.values_list('id', flat=True)
-            print(f"Daycare IDs for Validation: {daycare_ids}")
-            print(f"Creator Daycare IDs for Validation: {creator_daycare_ids}")
             if not all(daycare_id in creator_daycare_ids for daycare_id in daycare_ids):
-                print("Daycare validation failed")
                 raise serializers.ValidationError("You can only assign staff to daycares you are associated with.")
 
         # Create or get the user instance
@@ -88,9 +80,10 @@ class StaffProfileSerializer(serializers.ModelSerializer):
 
         return staff_profile
 
-
-
-    
+class BasicDaycareSerializerStaff(serializers.ModelSerializer):
+    class Meta:
+        model = Daycare
+        fields = ['id', 'daycare_name']
 
 class BasicStaffProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
@@ -142,7 +135,7 @@ class DaycareSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Daycare
-        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours', 'products', 'pet_types_display']
+        fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'staff', 'is_active', 'capacity', 'opening_hours', 'products', 'pet_types' ,'pet_types_display']
 
     def get_pet_types_display(self, obj):
         return obj.get_pet_types_display()
