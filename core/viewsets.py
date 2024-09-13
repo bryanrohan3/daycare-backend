@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import *
 from .permissions import *
+from django.utils.dateparse import parse_date
 
 
 class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin):
@@ -81,8 +82,6 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
             serializer = self.get_serializer(user.staffprofile)
             return Response(serializer.data)
         return Response({'detail': 'Staff profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    
     
 
 class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
@@ -220,15 +219,36 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
 class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = Roster.objects.all()
     serializer_class = RosterSerializer
-    permission_classes = [IsOwner]
+    permission_classes = [IsOwner | IsStaff]  # Ensure user is authenticated
 
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'POST']:
+
+            permission_classes = [IsOwner]
+        else:
+            permission_classes = [IsStaff]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         user = self.request.user
         if not user.is_authenticated:
             return Roster.objects.none()
 
+        queryset = Roster.objects.none()
+
         if hasattr(user, 'staffprofile'):
             staff_profile = user.staffprofile
-            return Roster.objects.filter(staff=staff_profile)
-        return Roster.objects.none()
+            queryset = Roster.objects.filter(staff=staff_profile)
+
+
+        if hasattr(user, 'staffprofile') and user.staffprofile.role == 'O':
+            owned_daycares = user.staffprofile.daycares.all() 
+            owner_queryset = Roster.objects.filter(daycare__in=owned_daycares)
+
+            queryset = queryset | owner_queryset
+
+        daycare_id = self.request.query_params.get('daycare', None)
+        if daycare_id:
+            queryset = queryset.filter(daycare__id=daycare_id)
+
+        return queryset.distinct()
