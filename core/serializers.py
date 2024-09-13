@@ -193,3 +193,37 @@ class CustomerDaycareSerializer(serializers.ModelSerializer):
     class Meta:
         model = Daycare
         fields = ['id', 'daycare_name', 'street_address', 'suburb', 'state', 'postcode', 'phone', 'email', 'opening_hours']
+
+
+class RosterSerializer(serializers.ModelSerializer):
+    staff = serializers.PrimaryKeyRelatedField(queryset=StaffProfile.objects.all())
+    daycare = serializers.PrimaryKeyRelatedField(queryset=Daycare.objects.all())
+
+    class Meta:
+        model = Roster
+        fields = ['id', 'staff', 'daycare', 'start_shift', 'end_shift', 'shift_day']
+
+    def validate(self, data):
+        staff = data.get('staff')
+        daycare = data.get('daycare')
+
+        # Check if the staff is associated with the daycare
+        if not staff.daycares.filter(id=daycare.id).exists():
+            raise serializers.ValidationError("Staff does not work in the specified daycare.")
+
+        return data
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication credentials were not provided.")
+
+        # Fetch the staff profile of the currently authenticated user
+        staff_profile = request.user.staffprofile
+
+        # Ensure the staff profile is associated with the daycare
+        daycare = validated_data['daycare']
+        if not staff_profile.daycares.filter(id=daycare.id).exists():
+            raise serializers.ValidationError("You cannot create a roster for a daycare you are not associated with.")
+
+        return super().create(validated_data)

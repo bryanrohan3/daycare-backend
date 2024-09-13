@@ -80,3 +80,12 @@ class ProductsAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
 
 admin.site.register(Product, ProductsAdmin)
+
+
+class RosterAdmin(admin.ModelAdmin):
+    list_display = ('staff', 'daycare__daycare_name', 'start_shift', 'end_shift', 'shift_day')
+    list_filter = ('daycare', 'shift_day')
+    search_fields = ('staff__user__first_name', 'staff__user__last_name', 'daycare__daycare_name')
+    raw_id_fields = ('staff', 'daycare')  # Use raw_id_fields for ForeignKey fields for better performance with large datasets
+
+admin.site.register(Roster, RosterAdmin)

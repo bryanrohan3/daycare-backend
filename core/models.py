@@ -116,3 +116,14 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.daycare.daycare_name}"
+
+
+class Roster(models.Model):
+    staff = models.ForeignKey(StaffProfile, related_name='roster', on_delete=models.CASCADE) 
+    daycare = models.ForeignKey(Daycare, related_name='roster', on_delete=models.CASCADE)
+    start_shift = models.DateTimeField()
+    end_shift = models.DateTimeField()
+    shift_day = models.DateField()
+
+    def __str__(self):
+        return f"{self.staff.user.get_full_name()} - {self.daycare.daycare_name} - {self.shift_day}"
