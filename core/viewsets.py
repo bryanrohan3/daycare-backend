@@ -252,3 +252,19 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
             queryset = queryset.filter(daycare__id=daycare_id)
 
         return queryset.distinct()
+
+
+class UnavailabilityViewSet(viewsets.ModelViewSet):
+    queryset = StaffUnavailability.objects.all()
+    serializer_class = StaffUnavailabilitySerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'staffprofile'):
+            return StaffUnavailability.objects.filter(staff=user.staffprofile)
+        return StaffUnavailability.objects.none()
+
+    def perform_create(self, serializer):
+        request = self.request
+        staff_profile = request.user.staffprofile
+        serializer.save(staff=staff_profile)

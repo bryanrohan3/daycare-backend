@@ -11,6 +11,7 @@ api_router.register(r'customer-profile', viewsets.CustomerProfileViewSet)
 api_router.register(r'daycare', viewsets.DaycareViewSet)
 api_router.register(r'product', viewsets.ProductViewSet, basename='product')
 api_router.register(r'roster', viewsets.RosterViewSet, basename='roster')
+api_router.register(r'unavailability', viewsets.UnavailabilityViewSet, basename='unavailability')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

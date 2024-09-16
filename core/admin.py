@@ -89,3 +89,12 @@ class RosterAdmin(admin.ModelAdmin):
     raw_id_fields = ('staff', 'daycare')  # Use raw_id_fields for ForeignKey fields for better performance with large datasets
 
 admin.site.register(Roster, RosterAdmin)
+
+
+class StaffUnavailabilityAdmin(admin.ModelAdmin):
+    list_display = ('staff', 'date', 'day_of_week', 'is_recurring')
+    list_filter = ('is_recurring', 'day_of_week')
+    search_fields = ('staff__user__first_name', 'staff__user__last_name')
+    raw_id_fields = ('staff',)  # To optimize performance if you have many staff profiles
+
+admin.site.register(StaffUnavailability, StaffUnavailabilityAdmin)

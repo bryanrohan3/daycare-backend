@@ -224,6 +224,19 @@ class RosterSerializer(serializers.ModelSerializer):
             # Check if the new shift overlaps with any existing shift
             if (start_shift < existing_end and end_shift > existing_start):
                 raise serializers.ValidationError("Staff already has a shift that overlaps with the new shift.")
+            
+        shift_day_of_week = start_shift.weekday()
+
+        recurring_unavailability = staff.unavailability_days.filter(is_recurring=True)
+        for unavailability in recurring_unavailability:
+            if unavailability.day_of_week == shift_day_of_week:
+                raise serializers.ValidationError(f"{staff} is unavailable on {unavailability.get_day_of_week_display()} (Recurring).")
+
+        # Check for one-off unavailability on specific dates
+        one_off_unavailability = staff.unavailability_days.filter(is_recurring=False)
+        for unavailability in one_off_unavailability:
+            if unavailability.date == start_shift.date():
+                raise serializers.ValidationError(f"{staff} is unavailable on {unavailability.date} (One-off).")
 
         return data
 
@@ -241,3 +254,17 @@ class RosterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You cannot create a roster for a daycare you are not associated with.")
 
         return super().create(validated_data)
+
+
+class StaffUnavailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StaffUnavailability
+        fields = ['id', 'staff', 'day_of_week', 'date', 'is_recurring']
+        read_only_fields = ['staff']
+
+    def validate(self, data):
+        if data.get('is_recurring') and data.get('day_of_week') is None:
+            raise serializers.ValidationError("Recurring unavailability requires a 'day_of_week'.")
+        if not data.get('is_recurring') and data.get('date') is None:
+            raise serializers.ValidationError("Non-recurring unavailability requires a 'date'.")
+        return data

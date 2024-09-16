@@ -127,3 +127,29 @@ class Roster(models.Model):
 
     def __str__(self):
         return f"{self.staff.user.get_full_name()} - {self.daycare.daycare_name} - {self.shift_day}"
+
+
+# Employees set their unavailabilities e.g Once off date or Monday every week etc
+class StaffUnavailability(models.Model):
+    DAYS = (
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    )
+
+    staff = models.ForeignKey(StaffProfile, related_name='unavailability_days', on_delete=models.CASCADE) # get staff profile
+    day_of_week = models.PositiveIntegerField(choices=DAYS, null=True, blank=True)
+    date = models.DateField(null=True, blank=True)
+    is_recurring = models.BooleanField(default=False)
+
+    def __str__(self):
+        if self.is_recurring:
+            return f"{self.get_day_of_week_display()} (Recurring)"
+        else:
+            return f"{self.date} (One-off)"
+
+
