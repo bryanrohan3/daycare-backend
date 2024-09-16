@@ -41,11 +41,11 @@ class BasicStaffUserSerializer(serializers.ModelSerializer):
 
 
 class BasicStaffProfileSerializer(serializers.ModelSerializer):
-    role = serializers.CharField()  # Assuming 'role' is a CharField in StaffProfile
+    user = UserSerializer()
 
     class Meta:
         model = StaffProfile
-        fields = ['user__first_name', 'user__last_name', 'role']
+        fields = ['user', 'role', 'phone', 'is_active']
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):
@@ -105,7 +105,7 @@ class BasicUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['first_name', 'last_name']
 
-class BasicStaffProfileSerializer(serializers.ModelSerializer):
+class BasicRosterStaffProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
 
@@ -223,7 +223,7 @@ class CustomerDaycareSerializer(serializers.ModelSerializer):
 
 class RosterSerializer(serializers.ModelSerializer):
     staff_id = serializers.PrimaryKeyRelatedField(queryset=StaffProfile.objects.all(), source='staff', write_only=True)
-    staff = BasicStaffProfileSerializer(read_only=True)
+    staff = BasicRosterStaffProfileSerializer(read_only=True)
     daycare = serializers.PrimaryKeyRelatedField(queryset=Daycare.objects.all())
 
     class Meta:
