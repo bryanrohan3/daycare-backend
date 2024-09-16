@@ -34,6 +34,20 @@ class UserLoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 
+class BasicStaffUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name']
+
+
+class BasicStaffProfileSerializer(serializers.ModelSerializer):
+    role = serializers.CharField()  # Assuming 'role' is a CharField in StaffProfile
+
+    class Meta:
+        model = StaffProfile
+        fields = ['user__first_name', 'user__last_name', 'role']
+
+
 class StaffProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     daycares = serializers.PrimaryKeyRelatedField(
@@ -86,12 +100,23 @@ class BasicDaycareSerializerStaff(serializers.ModelSerializer):
         model = Daycare
         fields = ['id', 'daycare_name']
 
+class BasicUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name']
+
 class BasicStaffProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    first_name = serializers.CharField(source='user.first_name')
+    last_name = serializers.CharField(source='user.last_name')
 
     class Meta:
         model = StaffProfile
-        fields = ['user', 'role', 'phone', 'is_active']
+        fields = ['id','first_name', 'last_name', 'role']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        return representation
+
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
@@ -197,12 +222,13 @@ class CustomerDaycareSerializer(serializers.ModelSerializer):
 
 
 class RosterSerializer(serializers.ModelSerializer):
-    staff = serializers.PrimaryKeyRelatedField(queryset=StaffProfile.objects.all())
+    staff_id = serializers.PrimaryKeyRelatedField(queryset=StaffProfile.objects.all(), source='staff', write_only=True)
+    staff = BasicStaffProfileSerializer(read_only=True)
     daycare = serializers.PrimaryKeyRelatedField(queryset=Daycare.objects.all())
 
     class Meta:
         model = Roster
-        fields = ['id', 'staff', 'daycare', 'start_shift', 'end_shift', 'shift_day']
+        fields = ['id', 'staff_id', 'staff', 'daycare', 'start_shift', 'end_shift', 'shift_day']
 
     def validate(self, data):
         staff = data.get('staff')
