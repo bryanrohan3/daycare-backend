@@ -45,7 +45,7 @@ class BasicStaffProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StaffProfile
-        fields = ['user', 'role', 'phone', 'is_active']
+        fields = ['id','user', 'role', 'phone', 'is_active']
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):
