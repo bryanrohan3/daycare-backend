@@ -239,10 +239,13 @@ class RosterSerializer(serializers.ModelSerializer):
         # Check if the staff is associated with the daycare
         if not staff.daycares.filter(id=daycare.id).exists():
             raise serializers.ValidationError("Staff does not work in the specified daycare.")
-        
+
+        # Exclude the current shift being updated
+        current_shift_id = self.instance.id if self.instance else None
+
         # Check for overlapping shifts
-        existing_shifts = Roster.objects.filter(staff=staff, daycare=daycare, shift_day=data.get('shift_day'))
-        
+        existing_shifts = Roster.objects.filter(staff=staff, daycare=daycare, shift_day=data.get('shift_day')).exclude(id=current_shift_id)
+
         for shift in existing_shifts:
             existing_start = shift.start_shift
             existing_end = shift.end_shift
@@ -250,7 +253,7 @@ class RosterSerializer(serializers.ModelSerializer):
             # Check if the new shift overlaps with any existing shift
             if (start_shift < existing_end and end_shift > existing_start):
                 raise serializers.ValidationError("Staff already has a shift that overlaps with the new shift.")
-            
+
         shift_day_of_week = start_shift.weekday()
 
         recurring_unavailability = staff.unavailability_days.filter(is_recurring=True)
@@ -265,6 +268,7 @@ class RosterSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"{staff} is unavailable on {unavailability.date} (One-off).")
 
         return data
+
 
     def create(self, validated_data):
         request = self.context.get('request')
