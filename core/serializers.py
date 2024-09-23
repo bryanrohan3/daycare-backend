@@ -228,7 +228,7 @@ class RosterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Roster
-        fields = ['id', 'staff_id', 'staff', 'daycare', 'start_shift', 'end_shift', 'shift_day']
+        fields = ['id', 'staff_id', 'staff', 'daycare', 'start_shift', 'end_shift', 'shift_day', 'is_active']
 
     def validate(self, data):
         staff = data.get('staff')

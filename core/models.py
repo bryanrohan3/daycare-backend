@@ -124,6 +124,7 @@ class Roster(models.Model):
     start_shift = models.DateTimeField()
     end_shift = models.DateTimeField()
     shift_day = models.DateField()
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.staff.user.get_full_name()} - {self.daycare.daycare_name} - {self.shift_day}"

@@ -238,20 +238,30 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
 
         if hasattr(user, 'staffprofile'):
             staff_profile = user.staffprofile
-            queryset = Roster.objects.filter(staff=staff_profile)
-
+            queryset = Roster.objects.filter(staff=staff_profile, is_active=True)  # Filter by is_active
 
         if hasattr(user, 'staffprofile') and user.staffprofile.role == 'O':
             owned_daycares = user.staffprofile.daycares.all() 
-            owner_queryset = Roster.objects.filter(daycare__in=owned_daycares)
+            owner_queryset = Roster.objects.filter(daycare__in=owned_daycares, is_active=True)  # Filter by is_active
 
             queryset = queryset | owner_queryset
 
         daycare_id = self.request.query_params.get('daycare', None)
         if daycare_id:
-            queryset = queryset.filter(daycare__id=daycare_id)
+            queryset = queryset.filter(daycare__id=daycare_id, is_active=True)  # Filter by is_active
 
         return queryset.distinct()
+
+
+    @action(detail=True, methods=['patch'], url_path='deactivate')
+    def deactivate(self, request, pk=None):
+        try:
+            roster = self.get_object()
+            roster.is_active = False
+            roster.save()
+            return Response({"detail": "Roster deactivated successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except Roster.DoesNotExist:
+            return Response({"detail": "Roster not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class UnavailabilityViewSet(viewsets.ModelViewSet):
