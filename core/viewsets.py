@@ -282,7 +282,6 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
 
 
 class UnavailabilityViewSet(viewsets.ModelViewSet):
-    queryset = StaffUnavailability.objects.all()
     serializer_class = StaffUnavailabilitySerializer
 
     def get_queryset(self):
@@ -292,16 +291,26 @@ class UnavailabilityViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'staffprofile'):
             staff_profile = user.staffprofile
             
-            # If the user is an owner, show unavailability for all staff in the owner's daycares
+            # If the user is an owner, show unavailability for all active staff in the owner's daycares
             if staff_profile.role == 'O':
                 owned_daycares = staff_profile.daycares.all()  # Fetch all daycares the owner is associated with
-                return StaffUnavailability.objects.filter(staff__daycares__in=owned_daycares).distinct()
+                return StaffUnavailability.objects.filter(staff__daycares__in=owned_daycares, is_active=True).distinct()
             else:
-                # If the user is not an owner, only show their own unavailability
-                return StaffUnavailability.objects.filter(staff=staff_profile)
+                # If the user is not an owner, only show their own active unavailability
+                return StaffUnavailability.objects.filter(staff=staff_profile, is_active=True)
         
         # Return an empty queryset if the user does not have a staff profile
         return StaffUnavailability.objects.none()
+
+    @action(detail=True, methods=['patch'], url_path='deactivate')
+    def deactivate(self, request, pk=None):
+        try:
+            unavailability = self.get_object()
+            unavailability.is_active = False
+            unavailability.save()
+            return Response({"detail": "Unavailability deactivated successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except StaffUnavailability.DoesNotExist:
+            return Response({"detail": "Unavailability not found."}, status=status.HTTP_404_NOT_FOUND)
 
     def perform_create(self, serializer):
         request = self.request

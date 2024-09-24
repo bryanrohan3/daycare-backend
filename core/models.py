@@ -146,6 +146,7 @@ class StaffUnavailability(models.Model):
     day_of_week = models.PositiveIntegerField(choices=DAYS, null=True, blank=True)
     date = models.DateField(null=True, blank=True)
     is_recurring = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         if self.is_recurring:

@@ -290,7 +290,7 @@ class StaffUnavailabilitySerializer(serializers.ModelSerializer):
     staff = BasicRosterStaffProfileSerializer(read_only=True)
     class Meta:
         model = StaffUnavailability
-        fields = ['id', 'staff', 'day_of_week', 'date', 'is_recurring']
+        fields = ['id', 'staff', 'day_of_week', 'date', 'is_recurring', 'is_active']
         read_only_fields = ['staff']
 
     def validate(self, data):
