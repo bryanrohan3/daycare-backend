@@ -287,6 +287,7 @@ class RosterSerializer(serializers.ModelSerializer):
 
 
 class StaffUnavailabilitySerializer(serializers.ModelSerializer):
+    staff = BasicRosterStaffProfileSerializer(read_only=True)
     class Meta:
         model = StaffUnavailability
         fields = ['id', 'staff', 'day_of_week', 'date', 'is_recurring']

@@ -281,16 +281,26 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
             return Response({"detail": "Roster not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
-
-
 class UnavailabilityViewSet(viewsets.ModelViewSet):
     queryset = StaffUnavailability.objects.all()
     serializer_class = StaffUnavailabilitySerializer
 
     def get_queryset(self):
         user = self.request.user
+        
+        # Ensure the user is authenticated and has a staff profile
         if hasattr(user, 'staffprofile'):
-            return StaffUnavailability.objects.filter(staff=user.staffprofile)
+            staff_profile = user.staffprofile
+            
+            # If the user is an owner, show unavailability for all staff in the owner's daycares
+            if staff_profile.role == 'O':
+                owned_daycares = staff_profile.daycares.all()  # Fetch all daycares the owner is associated with
+                return StaffUnavailability.objects.filter(staff__daycares__in=owned_daycares).distinct()
+            else:
+                # If the user is not an owner, only show their own unavailability
+                return StaffUnavailability.objects.filter(staff=staff_profile)
+        
+        # Return an empty queryset if the user does not have a staff profile
         return StaffUnavailability.objects.none()
 
     def perform_create(self, serializer):
