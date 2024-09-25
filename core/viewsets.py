@@ -240,7 +240,6 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
             staff_profile = user.staffprofile
             queryset = Roster.objects.filter(staff=staff_profile, is_active=True)
 
-            # Check for owner role and add to queryset if applicable
             if staff_profile.role == 'O':
                 owned_daycares = staff_profile.daycares.all()
                 owner_queryset = Roster.objects.filter(daycare__in=owned_daycares, is_active=True)
@@ -258,16 +257,19 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
         if start_date and end_date:
             try:
                 # Parse the start_date and end_date
-                start_shift = timezone.datetime.strptime(start_date, "%Y-%m-%d").date()
-                end_shift = timezone.datetime.strptime(end_date, "%Y-%m-%d").date()
+                start_shift = parse_date(start_date)
+                end_shift = parse_date(end_date)
 
-                # Filter queryset for shifts between start_shift and end_shift
-                queryset = queryset.filter(start_shift__gte=start_shift, end_shift__lte=end_shift)
+                if start_shift and end_shift:
+                    # Make the end_date inclusive by setting it to the end of the day
+                    end_shift = timezone.datetime.combine(end_shift, timezone.datetime.max.time())
+
+                    # Filter queryset for shifts between start_shift and inclusive end_shift
+                    queryset = queryset.filter(start_shift__gte=start_shift, start_shift__lte=end_shift)
 
             except ValueError:
-                return Roster.objects.none()  # Return an empty queryset if date parsing fails
+                return Roster.objects.none()  
 
-        # Limit results to 5
         return queryset.distinct()
 
     @action(detail=True, methods=['patch'], url_path='deactivate')
