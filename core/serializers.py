@@ -245,19 +245,20 @@ class RosterSerializer(serializers.ModelSerializer):
 
     def check_overlapping_shifts(self, data):
         staff = data.get('staff')
-        daycare = data.get('daycare')
         start_shift = data.get('start_shift')
         end_shift = data.get('end_shift')
+        shift_day = data.get('shift_day')
 
         # Exclude the current shift being updated
         current_shift_id = self.instance.id if self.instance else None
-        existing_shifts = Roster.objects.filter(staff=staff, daycare=daycare, shift_day=data.get('shift_day')).exclude(id=current_shift_id)
+        # Get all shifts for the staff on the same shift day
+        existing_shifts = Roster.objects.filter(staff=staff, shift_day=shift_day).exclude(id=current_shift_id)
 
         for shift in existing_shifts:
             existing_start = shift.start_shift
             existing_end = shift.end_shift
             if (start_shift < existing_end and end_shift > existing_start):
-                raise serializers.ValidationError("Staff already has a shift that overlaps with the new shift.")
+                raise serializers.ValidationError("Staff already has a shift that overlaps with another shift on the same day.")
 
     def check_unavailability(self, data):
         staff = data.get('staff')

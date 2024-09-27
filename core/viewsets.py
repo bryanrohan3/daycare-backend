@@ -217,11 +217,7 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         return super().create(request, *args, **kwargs)
 
 
-class RosterViewSet(viewsets.GenericViewSet, 
-                    mixins.UpdateModelMixin, 
-                    mixins.RetrieveModelMixin, 
-                    mixins.ListModelMixin, 
-                    mixins.CreateModelMixin):
+class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = Roster.objects.all()
     serializer_class = RosterSerializer
     permission_classes = [IsOwner | IsStaff]
