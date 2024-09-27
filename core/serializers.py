@@ -132,6 +132,12 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         customer_profile = CustomerProfile.objects.create(user=user, **validated_data)
         
         return customer_profile
+
+
+class CustomerBasicProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerProfile
+        fields = ['id', 'user']  # Add other fields you want to include
     
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -306,3 +312,42 @@ class StaffUnavailabilitySerializer(serializers.ModelSerializer):
         if not data.get('is_recurring') and data.get('date') is None:
             raise serializers.ValidationError("Non-recurring unavailability requires a 'date'.")
         return data
+
+
+class PetSerializer(serializers.ModelSerializer):
+    pet_types_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Pet
+        fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'pet_types_display']
+        extra_kwargs = {
+            'is_active': {'default': True},
+            'is_public': {'default': True},
+        }
+
+    def get_pet_types_display(self, obj):
+        return obj.get_pet_types_display()
+
+    def create(self, validated_data):
+        # Ensure pet_types is a list
+        if not isinstance(validated_data['pet_types'], list):
+            validated_data['pet_types'] = [validated_data['pet_types']]
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Ensure pet_types is a list
+        if 'pet_types' in validated_data and not isinstance(validated_data['pet_types'], list):
+            validated_data['pet_types'] = [validated_data['pet_types']]
+        return super().update(instance, validated_data)
+
+
+class PetNoteSerializer(serializers.ModelSerializer):
+    pet = serializers.PrimaryKeyRelatedField(queryset=Pet.objects.all())
+    employee = serializers.PrimaryKeyRelatedField(queryset=StaffProfile.objects.all())
+
+    class Meta:
+        model = PetNote
+        fields = ['id', 'pet', 'employee', 'note', 'is_private']
+
+    def create(self, validated_data):
+        return PetNote.objects.create(**validated_data)

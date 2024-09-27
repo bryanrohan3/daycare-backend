@@ -11,6 +11,7 @@ from .models import *
 from .permissions import *
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied
 
 
 class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin):
@@ -279,7 +280,7 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
             return Response({"detail": "Roster not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
-class UnavailabilityViewSet(viewsets.ModelViewSet):
+class UnavailabilityViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     serializer_class = StaffUnavailabilitySerializer
 
     def get_queryset(self):
@@ -314,3 +315,40 @@ class UnavailabilityViewSet(viewsets.ModelViewSet):
         request = self.request
         staff_profile = request.user.staffprofile
         serializer.save(staff=staff_profile)
+
+
+class PetViewSet(viewsets.GenericViewSet,
+                 mixins.CreateModelMixin,
+                 mixins.UpdateModelMixin,
+                 mixins.RetrieveModelMixin,
+                 mixins.ListModelMixin):
+    queryset = Pet.objects.all()
+    serializer_class = PetSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'customerprofile'):
+            return Pet.objects.filter(customers=user.customerprofile)
+        return Pet.objects.none()
+
+    def perform_create(self, serializer):
+        if not hasattr(self.request.user, 'customerprofile'):
+            raise PermissionDenied("Only customers can create pets.")
+        serializer.save(customers=[self.request.user.customerprofile])
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if self.request.user.customerprofile not in instance.customers.all():
+            raise PermissionDenied("You do not have permission to edit this pet.")
+        serializer.save()
+
+
+class PetNoteViewSet(viewsets.ModelViewSet):
+    queryset = PetNote.objects.all()
+    serializer_class = PetNoteSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'customerprofile'):
+            return PetNote.objects.filter(customers=user.customerprofile)
+        return PetNote.objects.none()

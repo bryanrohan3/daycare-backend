@@ -5,5 +5,3 @@ PET_TYPES = {
     4: 'Fish',
     5: 'Lizard',
 }
-
-# PET_TYPES_REVERSE = {v: k for k, v in PET_TYPES.items()}

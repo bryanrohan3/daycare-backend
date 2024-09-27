@@ -155,3 +155,32 @@ class StaffUnavailability(models.Model):
             return f"{self.date} (One-off)"
 
 
+class Pet(models.Model):
+    pet_name = models.CharField(max_length=25)
+    # pet_type = ...
+    pet_types = models.JSONField(default=list)
+    pet_bio = models.TextField(blank=True)
+    # photo = ? might make a seperate photo model since we might need to make a class Photo model incase we reuse it in other instances?
+    customers = models.ManyToManyField(CustomerProfile, related_name='pets')
+    is_public = models.BooleanField(default=True) # Public or Private
+    is_active = models.BooleanField(default=True)
+
+    def get_pet_types_display(self):
+        """Returns the display names of the pet types."""
+        # Ensure pet_types is a list, if not wrap it in a list
+        if isinstance(self.pet_types, int):
+            return [PET_TYPES[self.pet_types]]
+        return [PET_TYPES[pet_type_id] for pet_type_id in self.pet_types if pet_type_id in PET_TYPES]
+
+    def __str__(self):
+        return self.pet_name
+
+
+class PetNote(models.Model):
+    pet = models.ForeignKey(Pet, related_name='notes', on_delete=models.CASCADE) # e.g pet/1/
+    employee = models.ForeignKey(StaffProfile, related_name='pet_notes', on_delete=models.CASCADE) # e.g staff-profile/1
+    note = models.TextField() # Maybe a max char count? not really needed though
+    is_private = models.BooleanField(default=False)  # True if the note is private -> private for employees only
+
+    def __str__(self):
+        return f"Note for {self.pet.name} by {self.employee.user.get_full_name()}"

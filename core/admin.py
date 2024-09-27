@@ -98,3 +98,24 @@ class StaffUnavailabilityAdmin(admin.ModelAdmin):
     raw_id_fields = ('staff',)  # To optimize performance if you have many staff profiles
 
 admin.site.register(StaffUnavailability, StaffUnavailabilityAdmin)
+
+
+# Admin configuration for Pet
+class PetAdmin(admin.ModelAdmin):
+    list_display = ('pet_name', 'get_pet_types_display', 'is_public', 'is_active')
+    search_fields = ('pet_name',)
+
+    def get_pet_types_display(self, obj):
+        """Display the pet types in the admin list view."""
+        return ", ".join(obj.get_pet_types_display())
+    get_pet_types_display.short_description = 'Pet Types'  # Optional: Set a custom column name
+
+admin.site.register(Pet, PetAdmin)
+
+
+# Admin configuration for PetNote
+class PetNoteAdmin(admin.ModelAdmin):
+    list_display = ('pet', 'employee', 'note', 'is_private')
+    search_fields = ('pet__pet_name', 'employee__user__first_name', 'note')
+
+admin.site.register(PetNote, PetNoteAdmin)

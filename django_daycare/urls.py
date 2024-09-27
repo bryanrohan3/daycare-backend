@@ -12,6 +12,8 @@ api_router.register(r'daycare', viewsets.DaycareViewSet)
 api_router.register(r'product', viewsets.ProductViewSet, basename='product')
 api_router.register(r'roster', viewsets.RosterViewSet, basename='roster')
 api_router.register(r'unavailability', viewsets.UnavailabilityViewSet, basename='unavailability')
+api_router.register(r'pet', viewsets.PetViewSet, basename='pet')
+api_router.register(r'pet-note', viewsets.PetNoteViewSet, basename='pet-note')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
