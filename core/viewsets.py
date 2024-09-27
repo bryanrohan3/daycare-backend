@@ -217,10 +217,14 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         return super().create(request, *args, **kwargs)
 
 
-class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
+class RosterViewSet(viewsets.GenericViewSet, 
+                    mixins.UpdateModelMixin, 
+                    mixins.RetrieveModelMixin, 
+                    mixins.ListModelMixin, 
+                    mixins.CreateModelMixin):
     queryset = Roster.objects.all()
     serializer_class = RosterSerializer
-    permission_classes = [IsOwner | IsStaff]  # Ensure user is authenticated
+    permission_classes = [IsOwner | IsStaff]
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'POST']:
@@ -256,15 +260,11 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
 
         if start_date and end_date:
             try:
-                # Parse the start_date and end_date
                 start_shift = parse_date(start_date)
                 end_shift = parse_date(end_date)
 
                 if start_shift and end_shift:
-                    # Make the end_date inclusive by setting it to the end of the day
                     end_shift = timezone.datetime.combine(end_shift, timezone.datetime.max.time())
-
-                    # Filter queryset for shifts between start_shift and inclusive end_shift
                     queryset = queryset.filter(start_shift__gte=start_shift, start_shift__lte=end_shift)
 
             except ValueError:
