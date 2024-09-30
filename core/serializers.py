@@ -316,10 +316,11 @@ class StaffUnavailabilitySerializer(serializers.ModelSerializer):
 
 class PetSerializer(serializers.ModelSerializer):
     pet_types_display = serializers.SerializerMethodField()
-
+    customers = serializers.SerializerMethodField()  
+    
     class Meta:
         model = Pet
-        fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'pet_types_display']
+        fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'pet_types_display', 'customers']
         extra_kwargs = {
             'is_active': {'default': True},
             'is_public': {'default': True},
@@ -328,17 +329,25 @@ class PetSerializer(serializers.ModelSerializer):
     def get_pet_types_display(self, obj):
         return obj.get_pet_types_display()
 
+    def get_customers(self, obj):
+        # Retrieving the customers associated with the pet
+        return [{
+            'id': customer.id,
+            'full_name': customer.user.get_full_name(),
+            'phone': customer.phone,
+            'email': customer.user.email
+        } for customer in obj.customers.all()]
+
     def create(self, validated_data):
-        # Ensure pet_types is a list
         if not isinstance(validated_data['pet_types'], list):
             validated_data['pet_types'] = [validated_data['pet_types']]
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Ensure pet_types is a list
         if 'pet_types' in validated_data and not isinstance(validated_data['pet_types'], list):
             validated_data['pet_types'] = [validated_data['pet_types']]
         return super().update(instance, validated_data)
+
 
 
 class PetNoteSerializer(serializers.ModelSerializer):
