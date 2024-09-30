@@ -117,14 +117,29 @@ class BasicRosterStaffProfileSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         return representation
 
+class BasicPetSerializer(serializers.ModelSerializer):
+    pet_types_display = serializers.SerializerMethodField()  # To show pet type display names
+
+    class Meta:
+        model = Pet
+        fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active', 'pet_types_display']
+
+    def get_pet_types_display(self, obj):
+        return obj.get_pet_types_display()  # Call the method to get display names for pet types
+
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    pets = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
-        fields = ['id', 'user', 'phone', 'is_active']
+        fields = ['id', 'user', 'phone', 'pets', 'is_active']
+
+    def get_pets(self, obj):
+        # Retrieve pets associated with the customer profile
+        return BasicPetSerializer(obj.pets.all(), many=True).data 
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -316,8 +331,8 @@ class StaffUnavailabilitySerializer(serializers.ModelSerializer):
 
 class PetSerializer(serializers.ModelSerializer):
     pet_types_display = serializers.SerializerMethodField()
-    customers = serializers.SerializerMethodField()  
-    
+    customers = serializers.SerializerMethodField()
+
     class Meta:
         model = Pet
         fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'invite_token', 'pet_types_display', 'customers']
@@ -330,7 +345,6 @@ class PetSerializer(serializers.ModelSerializer):
         return obj.get_pet_types_display()
 
     def get_customers(self, obj):
-        # Retrieving the customers associated with the pet
         return [{
             'id': customer.id,
             'full_name': customer.user.get_full_name(),
@@ -338,16 +352,11 @@ class PetSerializer(serializers.ModelSerializer):
             'email': customer.user.email
         } for customer in obj.customers.all()]
 
-    def create(self, validated_data):
-        if not isinstance(validated_data['pet_types'], list):
-            validated_data['pet_types'] = [validated_data['pet_types']]
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        if 'pet_types' in validated_data and not isinstance(validated_data['pet_types'], list):
-            validated_data['pet_types'] = [validated_data['pet_types']]
-        return super().update(instance, validated_data)
-
+    def validate(self, attrs):
+        """Ensure pet_types is always a list."""
+        if 'pet_types' in attrs and not isinstance(attrs['pet_types'], list):
+            attrs['pet_types'] = [attrs['pet_types']]
+        return attrs
 
 
 class PetNoteSerializer(serializers.ModelSerializer):

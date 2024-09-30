@@ -106,6 +106,16 @@ class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, m
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], url_path='current', permission_classes=[IsCustomer])
+    def current(self, request):
+        """
+        Retrieve the staff profile of the currently authenticated user.
+        """
+        user = request.user
+        if hasattr(user, 'customerprofile'):
+            serializer = self.get_serializer(user.customerprofile)
+            return Response(serializer.data)
+        return Response({'detail': 'Customer profile not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = Daycare.objects.all()
@@ -328,48 +338,51 @@ class PetViewSet(viewsets.GenericViewSet,
     def get_queryset(self):
         user = self.request.user
         if hasattr(user, 'customerprofile'):
-            return Pet.objects.filter(customers=user.customerprofile)
+            return Pet.objects.filter(customers=user.customerprofile, is_active=True)
         return Pet.objects.none()
 
     def perform_create(self, serializer):
-        if not hasattr(self.request.user, 'customerprofile'):
-            raise PermissionDenied("Only customers can create pets.")
+        self._check_customer_permissions()
         serializer.save(customers=[self.request.user.customerprofile])
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        if self.request.user.customerprofile not in instance.customers.all():
-            raise PermissionDenied("You do not have permission to edit this pet.")
+        self._check_customer_permissions(instance)
         serializer.save()
+
+    def _check_customer_permissions(self, pet_instance=None):
+        """Check if the user is a customer for the given pet."""
+        user = self.request.user
+        if not hasattr(user, 'customerprofile'):
+            raise PermissionDenied("Only customers can create or update pets.")
+        if pet_instance and user.customerprofile not in pet_instance.customers.all():
+            raise PermissionDenied("You do not have permission to edit this pet.")
 
     @action(detail=True, methods=['post'], url_path='generate-invite')
     def generate_invite(self, request, pk=None):
-        """Generate an invite link for another customer to become a co-owner."""
         pet = self.get_object()
-        if self.request.user.customerprofile not in pet.customers.all():
-            raise PermissionDenied("You do not have permission to generate an invite for this pet.")
-        
+        self._check_customer_permissions(pet)
+
         pet.generate_invite_token()
         invite_link = f"http://127.0.0.1:8000/api/pet/invite/{pet.invite_token}/"
         return Response({"invite_link": invite_link})
 
     @action(detail=False, methods=['post'], url_path='invite/(?P<invite_token>[^/.]+)')
     def accept_invite(self, request, invite_token=None):
-        """Accept an invite and become a co-owner of a pet."""
         customer = request.user.customerprofile
 
         try:
             pet = Pet.objects.get(invite_token=invite_token)
         except Pet.DoesNotExist:
-            return Response({"detail": "Invalid invite token."}, status=400)
+            return Response({"detail": "Invalid invite token."}, status=status.HTTP_400_BAD_REQUEST)
 
         if customer not in pet.customers.all():
             pet.customers.add(customer)
-            pet.invite_token = None  # Clear the token once used -> we will need to generate a new token if want to add someone again
+            pet.invite_token = None  # Clear the token once used
             pet.save()
             return Response({"detail": f"You are now a co-owner of {pet.pet_name}."})
         else:
-            return Response({"detail": "You are already a co-owner of this pet."}, status=400)
+            return Response({"detail": "You are already a co-owner of this pet."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PetNoteViewSet(viewsets.ModelViewSet):
