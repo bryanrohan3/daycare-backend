@@ -119,18 +119,17 @@ class BasicRosterStaffProfileSerializer(serializers.ModelSerializer):
 
 class BasicPetSerializer(serializers.ModelSerializer):
     pet_types_display = serializers.SerializerMethodField()
-    customers = serializers.SerializerMethodField()  # Add this line to get detailed customer info
+    customers = serializers.SerializerMethodField() 
 
     class Meta:
         model = Pet
         fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active', 'pet_types_display', 'customers']
 
     def get_pet_types_display(self, obj):
-        return obj.get_pet_types_display()  # Call the method to get display names for pet types
+        return obj.get_pet_types_display()  
 
     def get_customers(self, obj):
-        # Retrieve detailed customer info associated with the pet
-        return CustomerBasicProfileSerializer(obj.customers.all(), many=True).data  # Use CustomerBasicProfileSerializer
+        return CustomerBasicProfileSerializer(obj.customers.all(), many=True).data 
 
 
 
@@ -144,7 +143,6 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'phone', 'pets', 'is_active']
 
     def get_pets(self, obj):
-        # Retrieve pets associated with the customer profile
         return BasicPetSerializer(obj.pets.all(), many=True).data 
 
     def create(self, validated_data):
@@ -153,16 +151,16 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         customer_profile = CustomerProfile.objects.create(user=user, **validated_data)
         
         return customer_profile
-        
+
 
 class CustomerBasicProfileSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()  # Add full name if needed
+    full_name = serializers.SerializerMethodField() 
     class Meta:
         model = CustomerProfile
-        fields = ['id', 'user', 'full_name']  # Add other fields you want to include
+        fields = ['id', 'user', 'full_name'] 
 
     def get_full_name(self, obj):
-        return f"{obj.user.first_name} {obj.user.last_name}"  # Construct full name
+        return f"{obj.user.first_name} {obj.user.last_name}" 
     
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
@@ -228,12 +226,10 @@ class DaycareSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         opening_hours_data = validated_data.pop('opening_hours', [])
 
-        # Update the fields of the Daycare instance
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Handle the nested OpeningHours
         if opening_hours_data:
             # Remove existing opening hours if any
             instance.opening_hours.all().delete()
