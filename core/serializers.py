@@ -118,14 +118,20 @@ class BasicRosterStaffProfileSerializer(serializers.ModelSerializer):
         return representation
 
 class BasicPetSerializer(serializers.ModelSerializer):
-    pet_types_display = serializers.SerializerMethodField()  # To show pet type display names
+    pet_types_display = serializers.SerializerMethodField()
+    customers = serializers.SerializerMethodField()  # Add this line to get detailed customer info
 
     class Meta:
         model = Pet
-        fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active', 'pet_types_display']
+        fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active', 'pet_types_display', 'customers']
 
     def get_pet_types_display(self, obj):
         return obj.get_pet_types_display()  # Call the method to get display names for pet types
+
+    def get_customers(self, obj):
+        # Retrieve detailed customer info associated with the pet
+        return CustomerBasicProfileSerializer(obj.customers.all(), many=True).data  # Use CustomerBasicProfileSerializer
+
 
 
 
@@ -147,12 +153,16 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         customer_profile = CustomerProfile.objects.create(user=user, **validated_data)
         
         return customer_profile
-
+        
 
 class CustomerBasicProfileSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()  # Add full name if needed
     class Meta:
         model = CustomerProfile
-        fields = ['id', 'user']  # Add other fields you want to include
+        fields = ['id', 'user', 'full_name']  # Add other fields you want to include
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"  # Construct full name
     
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
