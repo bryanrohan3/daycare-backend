@@ -3,6 +3,7 @@ from django.contrib.auth.models import User, AbstractUser
 from rest_framework.authtoken.models import Token
 from .utils.pet_types import PET_TYPES
 from django.core.exceptions import ValidationError
+from django.utils.crypto import get_random_string
 
 
 # Create your models here.
@@ -164,6 +165,11 @@ class Pet(models.Model):
     customers = models.ManyToManyField(CustomerProfile, related_name='pets')
     is_public = models.BooleanField(default=True) # Public or Private
     is_active = models.BooleanField(default=True)
+    invite_token = models.CharField(max_length=255, blank=True, null=True)
+
+    def generate_invite_token(self):
+        self.invite_token = get_random_string(50)
+        self.save()
 
     def get_pet_types_display(self):
         """Returns the display names of the pet types."""

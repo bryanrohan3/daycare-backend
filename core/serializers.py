@@ -320,7 +320,7 @@ class PetSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Pet
-        fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'pet_types_display', 'customers']
+        fields = ['id', 'pet_name', 'pet_types', 'pet_bio', 'is_public', 'is_active', 'invite_token', 'pet_types_display', 'customers']
         extra_kwargs = {
             'is_active': {'default': True},
             'is_public': {'default': True},

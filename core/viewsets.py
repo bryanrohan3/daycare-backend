@@ -342,6 +342,35 @@ class PetViewSet(viewsets.GenericViewSet,
             raise PermissionDenied("You do not have permission to edit this pet.")
         serializer.save()
 
+    @action(detail=True, methods=['post'], url_path='generate-invite')
+    def generate_invite(self, request, pk=None):
+        """Generate an invite link for another customer to become a co-owner."""
+        pet = self.get_object()
+        if self.request.user.customerprofile not in pet.customers.all():
+            raise PermissionDenied("You do not have permission to generate an invite for this pet.")
+        
+        pet.generate_invite_token()
+        invite_link = f"http://127.0.0.1:8000/api/pet/invite/{pet.invite_token}/"
+        return Response({"invite_link": invite_link})
+
+    @action(detail=False, methods=['post'], url_path='invite/(?P<invite_token>[^/.]+)')
+    def accept_invite(self, request, invite_token=None):
+        """Accept an invite and become a co-owner of a pet."""
+        customer = request.user.customerprofile
+
+        try:
+            pet = Pet.objects.get(invite_token=invite_token)
+        except Pet.DoesNotExist:
+            return Response({"detail": "Invalid invite token."}, status=400)
+
+        if customer not in pet.customers.all():
+            pet.customers.add(customer)
+            pet.invite_token = None  # Clear the token once used -> we will need to generate a new token if want to add someone again
+            pet.save()
+            return Response({"detail": f"You are now a co-owner of {pet.pet_name}."})
+        else:
+            return Response({"detail": "You are already a co-owner of this pet."}, status=400)
+
 
 class PetNoteViewSet(viewsets.ModelViewSet):
     queryset = PetNote.objects.all()
