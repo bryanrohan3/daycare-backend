@@ -137,6 +137,7 @@ class BasicPetSerializer(serializers.ModelSerializer):
 class CustomerProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     pets = serializers.SerializerMethodField()
+    # Serializer Classes here need to be added
 
     class Meta:
         model = CustomerProfile
@@ -335,6 +336,12 @@ class StaffUnavailabilitySerializer(serializers.ModelSerializer):
         return data
 
 
+class PetNameOnlySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pet
+        fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active']
+
+
 class PetSerializer(serializers.ModelSerializer):
     pet_types_display = serializers.SerializerMethodField()
     customers = serializers.SerializerMethodField()
@@ -358,11 +365,19 @@ class PetSerializer(serializers.ModelSerializer):
             'email': customer.user.email
         } for customer in obj.customers.all()]
 
-    def validate(self, attrs):
-        """Ensure pet_types is always a list."""
-        if 'pet_types' in attrs and not isinstance(attrs['pet_types'], list):
-            attrs['pet_types'] = [attrs['pet_types']]
-        return attrs
+    def to_representation(self, instance):
+        request = self.context.get('request', None)
+
+        # If the pet is private and the user is not a customer, return limited information
+        if not instance.is_public and request:
+            user = request.user
+            if not hasattr(user, 'customerprofile') or user.customerprofile not in instance.customers.all():
+                # Use PetNameOnlySerializer to return just the pet name
+                return PetNameOnlySerializer(instance).data
+
+        # Otherwise, return the full representation
+        return super().to_representation(instance)
+
 
 
 class PetNoteSerializer(serializers.ModelSerializer):

@@ -326,7 +326,6 @@ class UnavailabilityViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mi
         staff_profile = request.user.staffprofile
         serializer.save(staff=staff_profile)
 
-
 class PetViewSet(viewsets.GenericViewSet,
                  mixins.CreateModelMixin,
                  mixins.UpdateModelMixin,
@@ -337,9 +336,13 @@ class PetViewSet(viewsets.GenericViewSet,
 
     def get_queryset(self):
         user = self.request.user
+
         if hasattr(user, 'customerprofile'):
-            return Pet.objects.filter(customers=user.customerprofile, is_active=True)
-        return Pet.objects.none()
+            # Show all active pets to customers, including private ones
+            return Pet.objects.filter(is_active=True).distinct()
+        else:
+            # Allow non-customers to see all pets (public and private) but restrict the details later
+            return Pet.objects.filter(is_active=True).distinct()
 
     def perform_create(self, serializer):
         self._check_customer_permissions()
