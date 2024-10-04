@@ -390,3 +390,38 @@ class PetNoteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return PetNote.objects.create(**validated_data)
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status']
+        read_only_fields = ['status']
+    
+    def validate(self, attrs):
+        request = self.context['request']
+        user = request.user
+        customer = attrs.get('customer')
+        pet = attrs.get('pet')
+        daycare = attrs.get('daycare')
+        
+        # Assign the customer if not provided (for customer users)
+        if not customer and hasattr(user, 'customer'):
+            attrs['customer'] = user.customer
+        elif not customer:
+            raise serializers.ValidationError({"customer": "This field is required for staff users."})
+        
+        # Check if the customer owns the pet
+        if pet and customer and customer not in pet.customers.all():
+            raise serializers.ValidationError({"pet": "This pet does not belong to the customer."})
+
+        # Check if the staff user is associated with the daycare
+        if hasattr(user, 'staff') and daycare:
+            if not user.staff.daycares.filter(id=daycare.id).exists():
+                raise serializers.ValidationError({"daycare": "You are not associated with this daycare."})
+
+        return attrs
+
+    def create(self, validated_data):
+        # Optionally, you can perform further validation here if needed
+        return super().create(validated_data)

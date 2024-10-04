@@ -190,3 +190,12 @@ class PetNote(models.Model):
 
     def __str__(self):
         return f"Note for {self.pet.name} by {self.employee.user.get_full_name()}"
+
+
+class Booking(models.Model):
+    customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE)
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE)
+    daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    status = models.CharField(max_length=50, choices=[('accepted', 'Accepted'), ('rejected', 'Rejected')], default='accepted')

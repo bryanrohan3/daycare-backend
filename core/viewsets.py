@@ -20,7 +20,6 @@ class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Retri
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
     serializer_classes = {
         'login': UserLoginSerializer,
     }
@@ -397,3 +396,70 @@ class PetNoteViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'customerprofile'):
             return PetNote.objects.filter(customers=user.customerprofile)
         return PetNote.objects.none()
+
+
+class BookingViewSet(mixins.CreateModelMixin,
+                      mixins.UpdateModelMixin,
+                      mixins.RetrieveModelMixin,
+                      mixins.ListModelMixin,
+                      viewsets.GenericViewSet):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # If the user is a customer, show only their bookings
+        if hasattr(user, 'customer'):
+            return Booking.objects.filter(customer=user.customer)
+        
+        # If the user is staff, show only bookings for daycares they are associated with
+        if hasattr(user, 'staff'):
+            return Booking.objects.filter(daycare__in=user.staff.daycare_set.all())
+
+        return Booking.objects.none()  # Return an empty queryset for other users
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        customer = serializer.validated_data.get('customer')
+
+        # Retrieving the pet and daycare from request data
+        pet_id = self.request.data.get('pet')
+        daycare_id = self.request.data.get('daycare')
+
+        pet = self._get_object(Pet, pet_id)
+        daycare = self._get_object(Daycare, daycare_id)
+
+        # Permission that checks that the Customer must own the pet
+        if hasattr(user, 'customerprofile') and pet.owner != customer:
+            print("Permission Denied: The customer does not own this pet.")
+            raise PermissionDenied("You do not own this pet.")
+
+        # Permission that checks that If the user is staff, they must be associated with the daycare
+        if hasattr(user, 'staffprofile'):
+            staff_profile = user.staffprofile  # Adjusted to use 'staffprofile'
+            print("Staff Profile:", staff_profile)  # Debugging print
+
+            # Gets the IDs of the daycares the staff member is associated with
+            user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
+            print("User Daycare IDs:", list(user_daycare_ids))  # Debugging print
+
+            # Checks if the staff member is associated with the daycare
+            if daycare.id not in user_daycare_ids:
+                print(f"Daycare ID {daycare.id} is not in the user's associated daycares.")  # Debugging print
+                print(f"Daycares associated with staff: {staff_profile.daycares.all()}")  # Debugging print
+                raise PermissionDenied("You are not associated with this daycare.")
+
+        # If all checks pass, save the booking
+        print("All checks passed. Saving booking...")  # Debugging print -> error with daycare and staff id's matching
+        serializer.save(pet=pet, daycare=daycare)
+
+
+
+
+    def _get_object(self, model, obj_id):
+        """Generic method to retrieve an object by its ID, with permission handling."""
+        try:
+            return model.objects.get(pk=obj_id)
+        except model.DoesNotExist:
+            raise PermissionDenied(f"Invalid {model.__name__.lower()} ID.")

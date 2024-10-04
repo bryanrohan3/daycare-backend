@@ -119,3 +119,18 @@ class PetNoteAdmin(admin.ModelAdmin):
     search_fields = ('pet__pet_name', 'employee__user__first_name', 'note')
 
 admin.site.register(PetNote, PetNoteAdmin)
+
+
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'pet', 'daycare__daycare_name', 'start_time', 'end_time', 'status')
+    list_filter = ('status', 'daycare')
+    search_fields = ('customer__user__first_name', 'customer__user__last_name', 'pet__pet_name', 'daycare__daycare_name')
+    raw_id_fields = ('customer', 'pet', 'daycare')  # Useful for ForeignKeys to handle large datasets
+
+    def get_queryset(self, request):
+        """Override the default queryset to show related fields."""
+        queryset = super().get_queryset(request)
+        return queryset.select_related('customer', 'pet', 'daycare')
+
+# Register the Booking model in the admin
+admin.site.register(Booking, BookingAdmin)
