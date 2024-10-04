@@ -409,53 +409,48 @@ class BookingViewSet(mixins.CreateModelMixin,
     def get_queryset(self):
         user = self.request.user
 
-        # If the user is a customer, show only their bookings
-        if hasattr(user, 'customer'):
-            return Booking.objects.filter(customer=user.customer)
+        # If the user is a customer, only show their bookings
+        if hasattr(user, 'customerprofile'):
+            return Booking.objects.filter(customer=user.customerprofile)
         
-        # If the user is staff, show only bookings for daycares they are associated with
-        if hasattr(user, 'staff'):
-            return Booking.objects.filter(daycare__in=user.staff.daycare_set.all())
+        # If the user is staff, only show bookings for daycares they are linked to
+        if hasattr(user, 'staffprofile'):
+            return Booking.objects.filter(daycare__in=user.staffprofile.daycares.all())
 
-        return Booking.objects.none()  # Return an empty queryset for other users
+        return Booking.objects.none()  # Return an empty queryset for unrecognized users
 
     def perform_create(self, serializer):
         user = self.request.user
-        customer = serializer.validated_data.get('customer')
 
-        # Retrieving the pet and daycare from request data
+        # Retrieves the pet and daycare from request data
         pet_id = self.request.data.get('pet')
         daycare_id = self.request.data.get('daycare')
 
         pet = self._get_object(Pet, pet_id)
         daycare = self._get_object(Daycare, daycare_id)
 
-        # Permission that checks that the Customer must own the pet
-        if hasattr(user, 'customerprofile') and pet.owner != customer:
-            print("Permission Denied: The customer does not own this pet.")
+        # Automatically assigns customer based on user type
+        if hasattr(user, 'customerprofile'):
+            customer = user.customerprofile  # For customer, we use their profile
+        elif hasattr(user, 'staffprofile'):
+            # For staff, we expect the customer ID to be in the request data
+            customer_id = self.request.data.get('customer')
+            customer = self._get_object(CustomerProfile, customer_id)  # Ensure this model is correct
+        else:
+            raise PermissionDenied("User must be either a customer or staff.")
+
+        # Check if the customer owns the pet for both customer and staff users
+        if not pet.customers.filter(id=customer.id).exists():
             raise PermissionDenied("You do not own this pet.")
 
-        # Permission that checks that If the user is staff, they must be associated with the daycare
+        # Permission checks for staff users
         if hasattr(user, 'staffprofile'):
-            staff_profile = user.staffprofile  # Adjusted to use 'staffprofile'
-            print("Staff Profile:", staff_profile)  # Debugging print
-
-            # Gets the IDs of the daycares the staff member is associated with
-            user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
-            print("User Daycare IDs:", list(user_daycare_ids))  # Debugging print
-
-            # Checks if the staff member is associated with the daycare
+            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
             if daycare.id not in user_daycare_ids:
-                print(f"Daycare ID {daycare.id} is not in the user's associated daycares.")  # Debugging print
-                print(f"Daycares associated with staff: {staff_profile.daycares.all()}")  # Debugging print
                 raise PermissionDenied("You are not associated with this daycare.")
 
         # If all checks pass, save the booking
-        print("All checks passed. Saving booking...")  # Debugging print -> error with daycare and staff id's matching
-        serializer.save(pet=pet, daycare=daycare)
-
-
-
+        serializer.save(pet=pet, daycare=daycare, customer=customer)  # Set the customer explicitly here
 
     def _get_object(self, model, obj_id):
         """Generic method to retrieve an object by its ID, with permission handling."""

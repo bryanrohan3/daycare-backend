@@ -396,32 +396,27 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status']
-        read_only_fields = ['status']
-    
+        read_only_fields = ['status', 'customer']  # Make customer read-only
+
     def validate(self, attrs):
         request = self.context['request']
         user = request.user
-        customer = attrs.get('customer')
         pet = attrs.get('pet')
         daycare = attrs.get('daycare')
-        
-        # Assign the customer if not provided (for customer users)
-        if not customer and hasattr(user, 'customer'):
-            attrs['customer'] = user.customer
-        elif not customer:
-            raise serializers.ValidationError({"customer": "This field is required for staff users."})
-        
-        # Check if the customer owns the pet
-        if pet and customer and customer not in pet.customers.all():
+
+        # Automatically assign the customer for customer users
+        if hasattr(user, 'customerprofile'):
+            attrs['customer'] = user.customerprofile  # Automatically set customer to the logged-in user
+        else:
+            attrs['customer'] = attrs.get('customer')  # Just keep it as is
+
+        # Checks if the customer owns the pet
+        if pet and attrs['customer'] and attrs['customer'] not in pet.customers.all():
             raise serializers.ValidationError({"pet": "This pet does not belong to the customer."})
 
-        # Check if the staff user is associated with the daycare
-        if hasattr(user, 'staff') and daycare:
-            if not user.staff.daycares.filter(id=daycare.id).exists():
+        # Checks if the staff user is associated with the daycare
+        if hasattr(user, 'staffprofile') and daycare:
+            if not user.staffprofile.daycares.filter(id=daycare.id).exists():
                 raise serializers.ValidationError({"daycare": "You are not associated with this daycare."})
 
         return attrs
-
-    def create(self, validated_data):
-        # Optionally, you can perform further validation here if needed
-        return super().create(validated_data)
