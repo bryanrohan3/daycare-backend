@@ -492,3 +492,5 @@ class BookingViewSet(mixins.CreateModelMixin,
             return model.objects.get(pk=obj_id)
         except model.DoesNotExist:
             raise PermissionDenied(f"Invalid {model.__name__.lower()} ID.")
+        
+# GET http://127.0.0.1:8000/api/booking/?daycare=2&page=1&page_size=10
