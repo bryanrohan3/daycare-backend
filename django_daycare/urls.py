@@ -15,6 +15,7 @@ api_router.register(r'unavailability', viewsets.UnavailabilityViewSet, basename=
 api_router.register(r'pet', viewsets.PetViewSet, basename='pet')
 api_router.register(r'pet-note', viewsets.PetNoteViewSet, basename='pet-note')
 api_router.register(r'booking', viewsets.BookingViewSet, basename='booking')
+api_router.register(r'blacklist', viewsets.BlacklistedPetViewSet, basename='blacklist')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

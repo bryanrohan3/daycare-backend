@@ -134,3 +134,17 @@ class BookingAdmin(admin.ModelAdmin):
 
 # Register the Booking model in the admin
 admin.site.register(Booking, BookingAdmin)
+
+
+class BlacklistedPetAdmin(admin.ModelAdmin):
+    list_display = ('pet', 'daycare__daycare_name', 'reason', 'date_blacklisted', 'is_active')
+    list_filter = ('daycare', 'is_active')  # Allow filtering by daycare and active status
+    search_fields = ('pet__pet_name', 'daycare__daycare_name', 'reason')  # Search functionality
+
+    def get_queryset(self, request):
+        """Override the default queryset to show related fields."""
+        queryset = super().get_queryset(request)
+        return queryset.select_related('pet', 'daycare')
+
+# Register the BlacklistedPet model with the BlacklistedPetAdmin
+admin.site.register(BlacklistedPet, BlacklistedPetAdmin)

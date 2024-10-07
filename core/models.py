@@ -205,7 +205,18 @@ class Booking(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACCEPTED)
     is_active = models.BooleanField(default=True)
     checked_in = models.BooleanField(default=False)
-    recurrence = models.BooleanField(default=False)
+    recurrence = models.BooleanField(default=False)  # True if booking is part of a recurrence (this means books 4 weeks in advance on that day)
 
     def __str__(self):
         return f"Booking({self.customer}, {self.pet}, {self.daycare}, {self.start_time}, {self.end_time})"
+    
+
+class BlacklistedPet(models.Model):
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE)
+    daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
+    reason = models.TextField(blank=True, null=True)
+    date_blacklisted = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.pet} is blacklisted from {self.daycare}"

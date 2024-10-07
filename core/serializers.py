@@ -396,7 +396,7 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence']
-        read_only_fields = ['status']  
+        read_only_fields = ['status']
 
     def validate(self, attrs):
         request = self.context['request']
@@ -409,13 +409,23 @@ class BookingSerializer(serializers.ModelSerializer):
         else:
             attrs['customer'] = attrs.get('customer')
 
-        # Checks if the customer owns the pet
+        # Check if the customer owns the pet
         if pet and attrs['customer'] and attrs['customer'] not in pet.customers.all():
             raise serializers.ValidationError({"pet": "This pet does not belong to the customer."})
 
-        # Checks if the staff user is associated with the daycare
+        # Check if the staff user is associated with the daycare
         if hasattr(user, 'staffprofile') and daycare:
             if not user.staffprofile.daycares.filter(id=daycare.id).exists():
                 raise serializers.ValidationError({"daycare": "You are not associated with this daycare."})
 
+        # Check if the pet is blacklisted
+        if BlacklistedPet.objects.filter(pet=pet, daycare=daycare).exists():
+            raise serializers.ValidationError({"pet": "This pet is blacklisted from this daycare."})
+
         return attrs
+
+
+class BlacklistedPetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlacklistedPet
+        fields = ['id', 'pet', 'daycare', 'reason', 'date_blacklisted', 'is_active']

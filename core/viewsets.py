@@ -529,3 +529,53 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
             return model.objects.get(pk=obj_id)
         except model.DoesNotExist:
             raise PermissionDenied(f"Invalid {model.__name__.lower()} ID.")
+
+
+class BlacklistedPetViewSet(viewsets.ModelViewSet):
+    serializer_class = BlacklistedPetSerializer
+    permission_classes = [IsStaff]
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'staffprofile'):
+            return BlacklistedPet.objects.filter(daycare__in=user.staffprofile.daycares.all())
+        return BlacklistedPet.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        daycare_id = self.request.data.get('daycare')
+
+        if not daycare_id:
+            return Response({'error': 'Daycare is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        daycare = self._get_object(Daycare, daycare_id)
+
+        self._check_daycare_association(user, daycare)
+
+        serializer.save()
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaff])
+    def unblacklist_pet(self, request, pk=None):
+        """Set a pet's blacklist status to inactive."""
+        blacklisted_pet = self.get_object() 
+        user = request.user
+
+        self._check_daycare_association(user, blacklisted_pet.daycare)
+
+        blacklisted_pet.is_active = False
+        blacklisted_pet.save()
+        return Response({'status': 'Pet unblacklisted successfully.'})
+
+    def _check_daycare_association(self, user, daycare):
+        if hasattr(user, 'staffprofile'):
+            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+            if daycare.id not in user_daycare_ids:
+                raise PermissionDenied("You are not associated with this daycare.")
+        else:
+            raise PermissionDenied("You are not a staff member associated with any daycare.")
+
+    def _get_object(self, model, obj_id):
+        try:
+            return model.objects.get(pk=obj_id)
+        except model.DoesNotExist:
+            return Response({'error': f'Invalid {model.__name__.lower()} ID.'}, status=status.HTTP_400_BAD_REQUEST)
