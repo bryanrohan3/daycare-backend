@@ -193,10 +193,19 @@ class PetNote(models.Model):
 
 
 class Booking(models.Model):
+    class Status(models.TextChoices):
+        ACCEPTED = 'accepted', 'Accepted'
+        REJECTED = 'rejected', 'Rejected'
+
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE)
     pet = models.ForeignKey(Pet, on_delete=models.CASCADE)
     daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
-    status = models.CharField(max_length=50, choices=[('accepted', 'Accepted'), ('rejected', 'Rejected')], default='accepted')
+    status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACCEPTED)
     is_active = models.BooleanField(default=True)
+    checked_in = models.BooleanField(default=False)
+    recurrence = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Booking({self.customer}, {self.pet}, {self.daycare}, {self.start_time}, {self.end_time})"

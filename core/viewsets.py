@@ -13,6 +13,8 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
+# import timedelta
+from datetime import timedelta
 
 
 class CustomPagination(PageNumberPagination):
@@ -405,11 +407,7 @@ class PetNoteViewSet(viewsets.ModelViewSet):
         return PetNote.objects.none()
 
 
-class BookingViewSet(mixins.CreateModelMixin,
-                      mixins.UpdateModelMixin,
-                      mixins.RetrieveModelMixin,
-                      mixins.ListModelMixin,
-                      viewsets.GenericViewSet):
+class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     pagination_class = CustomPagination 
@@ -418,12 +416,9 @@ class BookingViewSet(mixins.CreateModelMixin,
         user = self.request.user
         queryset = Booking.objects.all()  
 
-        # If the user is a customer, only show their bookings
         if hasattr(user, 'customerprofile'):
             queryset = queryset.filter(customer=user.customerprofile)
-        
-        # If the user is staff, only show bookings for daycares they are linked to
-        if hasattr(user, 'staffprofile'):
+        elif hasattr(user, 'staffprofile'):
             queryset = queryset.filter(daycare__in=user.staffprofile.daycares.all())
         
         daycare_id = self.request.query_params.get('daycare')
@@ -434,41 +429,61 @@ class BookingViewSet(mixins.CreateModelMixin,
 
     def perform_create(self, serializer):
         user = self.request.user
+        pet = self._get_object(Pet, self.request.data.get('pet'))
+        daycare = self._get_object(Daycare, self.request.data.get('daycare'))
 
-        # Retrieves the pet and daycare from request data
-        pet_id = self.request.data.get('pet')
-        daycare_id = self.request.data.get('daycare')
+        customer = self._get_customer(user)
 
-        pet = self._get_object(Pet, pet_id)
-        daycare = self._get_object(Daycare, daycare_id)
+        self._check_pet_ownership(customer, pet)
+        self._check_daycare_association(user, daycare)
 
-        # Automatically assigns customer based on user type
+        booking = serializer.save(pet=pet, daycare=daycare, customer=customer)
+
+        if booking.recurrence:
+            self.create_recurring_bookings(booking)
+
+    def create_recurring_bookings(self, booking):
+        for week in range(1, 5):  # 4 weeks
+            new_start_time = booking.start_time + timedelta(weeks=week)
+            new_end_time = booking.end_time + timedelta(weeks=week)
+
+            # Create a new booking for the next occurrence
+            Booking.objects.create(
+                customer=booking.customer,
+                pet=booking.pet,
+                daycare=booking.daycare,
+                start_time=new_start_time,
+                end_time=new_end_time,
+                status=booking.status,
+                is_active=True,
+                recurrence=False  
+            )
+
+    def _get_customer(self, user):
         if hasattr(user, 'customerprofile'):
-            customer = user.customerprofile  # For customers, we use their profile
+            return user.customerprofile
         elif hasattr(user, 'staffprofile'):
             customer_id = self.request.data.get('customer')
-            customer = self._get_object(CustomerProfile, customer_id) 
+            return self._get_object(CustomerProfile, customer_id)
         else:
             raise PermissionDenied("User must be either a customer or staff.")
 
-        # Check if the customer owns the pet for both customer and staff users
+    def _check_pet_ownership(self, customer, pet):
         if not pet.customers.filter(id=customer.id).exists():
             raise PermissionDenied("You do not own this pet.")
 
+    def _check_daycare_association(self, user, daycare):
         if hasattr(user, 'staffprofile'):
             user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
             if daycare.id not in user_daycare_ids:
                 raise PermissionDenied("You are not associated with this daycare.")
 
-        # If all checks pass, save the booking
-        serializer.save(pet=pet, daycare=daycare, customer=customer)  # Set the customer explicitly here
-
     @action(detail=True, methods=['patch'], permission_classes=[IsStaff])
     def edit_booking(self, request, pk=None):
         """Allows staff to edit the booking but customer cannot."""
         booking = self.get_object()
-
         request_data = request.data.copy()
+
         if 'customer' not in request_data:
             request_data['customer'] = booking.customer.id  
 
@@ -481,10 +496,32 @@ class BookingViewSet(mixins.CreateModelMixin,
     def cancel_booking(self, request, pk=None):
         """Allows both staff and customers to cancel their booking."""
         booking = self.get_object()
-
         booking.is_active = False
         booking.save()
         return Response({'status': 'Booking canceled.'})
+    
+    @action(detail=True, methods=['patch'], permission_classes=[IsStaff])
+    def check_in(self, request, pk=None):
+        """Allows staff to check a pet in."""
+        return self._toggle_check_in_out(request, checked_in=True)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsStaff])
+    def check_out(self, request, pk=None):
+        """Allows staff to check a pet out."""
+        return self._toggle_check_in_out(request, checked_in=False)
+
+    def _toggle_check_in_out(self, request, checked_in):
+        booking = self.get_object()
+
+        if not booking.is_active:
+            return Response({'error': 'Booking is not active.'}, status=400)
+        if booking.checked_in == checked_in:
+            status = 'checked in' if checked_in else 'checked out'
+            return Response({'error': f'Pet is already {status}.'}, status=400)
+
+        booking.checked_in = checked_in
+        booking.save()
+        return Response({'status': f'Pet {"checked in" if checked_in else "checked out"} successfully.'})
 
     def _get_object(self, model, obj_id):
         """Generic method to retrieve an object by its ID, with permission handling."""
@@ -492,5 +529,3 @@ class BookingViewSet(mixins.CreateModelMixin,
             return model.objects.get(pk=obj_id)
         except model.DoesNotExist:
             raise PermissionDenied(f"Invalid {model.__name__.lower()} ID.")
-        
-# GET http://127.0.0.1:8000/api/booking/?daycare=2&page=1&page_size=10

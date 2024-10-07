@@ -395,7 +395,7 @@ class PetNoteSerializer(serializers.ModelSerializer):
 class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active']
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence']
         read_only_fields = ['status']  
 
     def validate(self, attrs):
