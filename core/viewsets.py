@@ -12,6 +12,13 @@ from .permissions import *
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.pagination import PageNumberPagination
+
+
+class CustomPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
 
 
 class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin):
@@ -405,19 +412,25 @@ class BookingViewSet(mixins.CreateModelMixin,
                       viewsets.GenericViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+    pagination_class = CustomPagination 
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Booking.objects.all()  
 
         # If the user is a customer, only show their bookings
         if hasattr(user, 'customerprofile'):
-            return Booking.objects.filter(customer=user.customerprofile)
+            queryset = queryset.filter(customer=user.customerprofile)
         
         # If the user is staff, only show bookings for daycares they are linked to
         if hasattr(user, 'staffprofile'):
-            return Booking.objects.filter(daycare__in=user.staffprofile.daycares.all())
+            queryset = queryset.filter(daycare__in=user.staffprofile.daycares.all())
+        
+        daycare_id = self.request.query_params.get('daycare')
+        if daycare_id is not None:
+            queryset = queryset.filter(daycare_id=daycare_id)
 
-        return Booking.objects.none()  # Return an empty queryset for unrecognized users
+        return queryset  
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -442,7 +455,6 @@ class BookingViewSet(mixins.CreateModelMixin,
         if not pet.customers.filter(id=customer.id).exists():
             raise PermissionDenied("You do not own this pet.")
 
-        # Permission checks for staff users -> can this be handled again with permsiison let me check later
         if hasattr(user, 'staffprofile'):
             user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
             if daycare.id not in user_daycare_ids:
@@ -464,7 +476,6 @@ class BookingViewSet(mixins.CreateModelMixin,
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
-
 
     @action(detail=True, methods=['patch'], permission_classes=[IsStaff | IsCustomer])
     def cancel_booking(self, request, pk=None):
