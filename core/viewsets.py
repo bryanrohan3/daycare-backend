@@ -431,11 +431,10 @@ class BookingViewSet(mixins.CreateModelMixin,
 
         # Automatically assigns customer based on user type
         if hasattr(user, 'customerprofile'):
-            customer = user.customerprofile  # For customer, we use their profile
+            customer = user.customerprofile  # For customers, we use their profile
         elif hasattr(user, 'staffprofile'):
-            # For staff, we expect the customer ID to be in the request data
             customer_id = self.request.data.get('customer')
-            customer = self._get_object(CustomerProfile, customer_id)  # Ensure this model is correct
+            customer = self._get_object(CustomerProfile, customer_id) 
         else:
             raise PermissionDenied("User must be either a customer or staff.")
 
@@ -443,7 +442,7 @@ class BookingViewSet(mixins.CreateModelMixin,
         if not pet.customers.filter(id=customer.id).exists():
             raise PermissionDenied("You do not own this pet.")
 
-        # Permission checks for staff users
+        # Permission checks for staff users -> can this be handled again with permsiison let me check later
         if hasattr(user, 'staffprofile'):
             user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
             if daycare.id not in user_daycare_ids:
@@ -451,6 +450,30 @@ class BookingViewSet(mixins.CreateModelMixin,
 
         # If all checks pass, save the booking
         serializer.save(pet=pet, daycare=daycare, customer=customer)  # Set the customer explicitly here
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsStaff])
+    def edit_booking(self, request, pk=None):
+        """Allows staff to edit the booking but customer cannot."""
+        booking = self.get_object()
+
+        request_data = request.data.copy()
+        if 'customer' not in request_data:
+            request_data['customer'] = booking.customer.id  
+
+        serializer = self.get_serializer(booking, data=request_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsStaff | IsCustomer])
+    def cancel_booking(self, request, pk=None):
+        """Allows both staff and customers to cancel their booking."""
+        booking = self.get_object()
+
+        booking.is_active = False
+        booking.save()
+        return Response({'status': 'Booking canceled.'})
 
     def _get_object(self, model, obj_id):
         """Generic method to retrieve an object by its ID, with permission handling."""

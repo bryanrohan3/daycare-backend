@@ -37,23 +37,25 @@ class IsEmployee(permissions.BasePermission):
 # 3. IsStaff
 class IsStaff(permissions.BasePermission):
     """
-    Allows access only to dealers (either sales or management) from the same dealership.
+    Allows access only to staff from the same daycare(s).
     """
     def has_permission(self, request, view):
-        # Check if the user is authenticated and has a dealer profile
+        # Check if the user is authenticated and has a staff profile
         return request.user and request.user.is_authenticated and hasattr(request.user, 'staffprofile')
 
     def has_object_permission(self, request, view, obj):
         # Allow safe methods for everyone
         if request.method in SAFE_METHODS:
             return True
-        
-        # Check if the user is a dealer and belongs to the same dealership as the object
+
+        # Check if the user is staff and is linked to any of the daycares in the booking
         if hasattr(request.user, 'staffprofile'):
             staff_profile = request.user.staffprofile
-            return obj.daycare == staff_profile.daycare
-        
+            # obj is the booking, we check if booking's daycare is in the staff's daycares
+            return obj.daycare in staff_profile.daycares.all()
+
         return False
+
 
 # 4. IsCustomer
 class IsCustomer(permissions.BasePermission):

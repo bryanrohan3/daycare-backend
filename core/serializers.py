@@ -395,8 +395,8 @@ class PetNoteSerializer(serializers.ModelSerializer):
 class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status']
-        read_only_fields = ['status', 'customer']  # Make customer read-only
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active']
+        read_only_fields = ['status']  
 
     def validate(self, attrs):
         request = self.context['request']
@@ -404,11 +404,10 @@ class BookingSerializer(serializers.ModelSerializer):
         pet = attrs.get('pet')
         daycare = attrs.get('daycare')
 
-        # Automatically assign the customer for customer users
         if hasattr(user, 'customerprofile'):
-            attrs['customer'] = user.customerprofile  # Automatically set customer to the logged-in user
+            attrs['customer'] = user.customerprofile 
         else:
-            attrs['customer'] = attrs.get('customer')  # Just keep it as is
+            attrs['customer'] = attrs.get('customer')
 
         # Checks if the customer owns the pet
         if pet and attrs['customer'] and attrs['customer'] not in pet.customers.all():

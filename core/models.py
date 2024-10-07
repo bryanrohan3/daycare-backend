@@ -199,3 +199,4 @@ class Booking(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     status = models.CharField(max_length=50, choices=[('accepted', 'Accepted'), ('rejected', 'Rejected')], default='accepted')
+    is_active = models.BooleanField(default=True)
