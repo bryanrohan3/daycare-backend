@@ -393,9 +393,11 @@ class PetNoteSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
+    products = serializers.PrimaryKeyRelatedField(many=True, queryset=Product.objects.all())
+
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence']
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products']
         read_only_fields = ['status']
 
     def validate(self, attrs):
@@ -403,6 +405,12 @@ class BookingSerializer(serializers.ModelSerializer):
         user = request.user
         pet = attrs.get('pet')
         daycare = attrs.get('daycare')
+        products = attrs.get('products', [])
+
+        print(f"User: {user}")
+        print(f"Pet: {pet}")
+        print(f"Daycare: {daycare}")
+        print(f"Products: {products}")
 
         if hasattr(user, 'customerprofile'):
             attrs['customer'] = user.customerprofile 
@@ -411,17 +419,32 @@ class BookingSerializer(serializers.ModelSerializer):
 
         # Check if the customer owns the pet
         if pet and attrs['customer'] and attrs['customer'] not in pet.customers.all():
+            print(f"Customer does not own the pet: {attrs['customer']}")
             raise serializers.ValidationError({"pet": "This pet does not belong to the customer."})
 
         # Check if the staff user is associated with the daycare
         if hasattr(user, 'staffprofile') and daycare:
             if not user.staffprofile.daycares.filter(id=daycare.id).exists():
+                print(f"Staff is not associated with the daycare: {daycare}")
                 raise serializers.ValidationError({"daycare": "You are not associated with this daycare."})
 
-        # Check if the pet is blacklisted
-        if BlacklistedPet.objects.filter(pet=pet, daycare=daycare).exists():
+        blacklisted_pet = BlacklistedPet.objects.filter(pet=pet, daycare=daycare, is_active=True).first()
+        if blacklisted_pet:
+            print(f"Pet is blacklisted: {pet}")
             raise serializers.ValidationError({"pet": "This pet is blacklisted from this daycare."})
 
+        if daycare and products:
+            valid_product_ids = Product.objects.filter(daycare=daycare).values_list('id', flat=True)
+            product_ids = [product.id for product in products]  # Get the IDs of the products from the request
+            print(f"Valid product IDs for daycare {daycare}: {list(valid_product_ids)}")
+            print(f"Provided product IDs: {product_ids}")
+            invalid_products = [product_id for product_id in product_ids if product_id not in valid_product_ids]
+            print(f"Invalid products: {invalid_products}")
+            if invalid_products:
+                raise serializers.ValidationError({"products": "Some products do not belong to the specified daycare."})
+
+        # Final attributes
+        print(f"Validated attributes: {attrs}")
         return attrs
 
 

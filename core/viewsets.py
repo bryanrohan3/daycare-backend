@@ -439,8 +439,13 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
 
         booking = serializer.save(pet=pet, daycare=daycare, customer=customer)
 
+        products = self.request.data.get('products', [])
+        if products:
+            booking.products.set(products)
+
         if booking.recurrence:
             self.create_recurring_bookings(booking)
+
 
     def create_recurring_bookings(self, booking):
         for week in range(1, 5):  # 4 weeks

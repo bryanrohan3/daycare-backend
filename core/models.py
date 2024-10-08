@@ -206,6 +206,7 @@ class Booking(models.Model):
     is_active = models.BooleanField(default=True)
     checked_in = models.BooleanField(default=False)
     recurrence = models.BooleanField(default=False)  # True if booking is part of a recurrence (this means books 4 weeks in advance on that day)
+    products = models.ManyToManyField(Product, related_name='bookings')
 
     def __str__(self):
         return f"Booking({self.customer}, {self.pet}, {self.daycare}, {self.start_time}, {self.end_time})"
