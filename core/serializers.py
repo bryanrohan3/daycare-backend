@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from .models import *
 from django.utils.dateparse import parse_datetime
+from django.utils import timezone
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -407,10 +408,7 @@ class BookingSerializer(serializers.ModelSerializer):
         daycare = attrs.get('daycare')
         products = attrs.get('products', [])
 
-        print(f"User: {user}")
-        print(f"Pet: {pet}")
-        print(f"Daycare: {daycare}")
-        print(f"Products: {products}")
+        current_time = timezone.now() 
 
         if hasattr(user, 'customerprofile'):
             attrs['customer'] = user.customerprofile 
@@ -419,33 +417,57 @@ class BookingSerializer(serializers.ModelSerializer):
 
         # Check if the customer owns the pet
         if pet and attrs['customer'] and attrs['customer'] not in pet.customers.all():
-            print(f"Customer does not own the pet: {attrs['customer']}")
             raise serializers.ValidationError({"pet": "This pet does not belong to the customer."})
 
         # Check if the staff user is associated with the daycare
         if hasattr(user, 'staffprofile') and daycare:
             if not user.staffprofile.daycares.filter(id=daycare.id).exists():
-                print(f"Staff is not associated with the daycare: {daycare}")
                 raise serializers.ValidationError({"daycare": "You are not associated with this daycare."})
 
         blacklisted_pet = BlacklistedPet.objects.filter(pet=pet, daycare=daycare, is_active=True).first()
         if blacklisted_pet:
-            print(f"Pet is blacklisted: {pet}")
             raise serializers.ValidationError({"pet": "This pet is blacklisted from this daycare."})
 
         if daycare and products:
             valid_product_ids = Product.objects.filter(daycare=daycare).values_list('id', flat=True)
-            product_ids = [product.id for product in products]  # Get the IDs of the products from the request
-            print(f"Valid product IDs for daycare {daycare}: {list(valid_product_ids)}")
-            print(f"Provided product IDs: {product_ids}")
+            product_ids = [product.id for product in products]
             invalid_products = [product_id for product_id in product_ids if product_id not in valid_product_ids]
-            print(f"Invalid products: {invalid_products}")
             if invalid_products:
                 raise serializers.ValidationError({"products": "Some products do not belong to the specified daycare."})
 
-        # Final attributes
-        print(f"Validated attributes: {attrs}")
+        start_time = attrs.get('start_time')
+        end_time = attrs.get('end_time')
+
+        if not self.is_daycare_open(daycare, start_time):
+            raise serializers.ValidationError({"start_time": "The daycare is closed on the selected day."})
+
+        if not self.is_within_opening_hours(daycare, start_time, end_time):
+            raise serializers.ValidationError({"start_time": "The booking times are outside of the daycare's opening hours."})
+
         return attrs
+
+    def is_daycare_open(self, daycare, start_time):
+        """Check if the daycare is open on the day of the booking."""
+        day_of_week = start_time.weekday() + 1  # Convert to 1-7 format (Monday = 1)
+        opening_hours = OpeningHours.objects.filter(daycare=daycare, day=day_of_week).first()
+        return opening_hours and not opening_hours.closed
+
+    def is_within_opening_hours(self, daycare, start_time, end_time):
+        """Check if the requested booking time is within the opening hours."""
+        day_of_week = start_time.weekday() + 1
+        opening_hours = OpeningHours.objects.filter(daycare=daycare, day=day_of_week).first()
+
+        if opening_hours and opening_hours.from_hour and opening_hours.to_hour:
+            opening_start = timezone.datetime.combine(start_time.date(), opening_hours.from_hour).replace(tzinfo=None)
+            opening_end = timezone.datetime.combine(end_time.date(), opening_hours.to_hour).replace(tzinfo=None)
+
+            start_time_naive = start_time.replace(tzinfo=None)
+            end_time_naive = end_time.replace(tzinfo=None)
+
+            if start_time_naive.time() < opening_start.time() or end_time_naive.time() > opening_end.time():
+                return False
+        return True
+
 
 
 class BlacklistedPetSerializer(serializers.ModelSerializer):
