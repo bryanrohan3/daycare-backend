@@ -447,7 +447,28 @@ class BookingSerializer(serializers.ModelSerializer):
         if not self.has_capacity(daycare, start_time, end_time):
             raise serializers.ValidationError({"start_time": "The daycare has reached its capacity for the selected time."})
 
+        if self.has_overlapping_bookings(pet, daycare, start_time, end_time):
+            raise serializers.ValidationError({"start_time": "This pet already has a booking during the requested time."})
+
         return attrs
+
+    def has_overlapping_bookings(self, pet, daycare, start_time, end_time):
+        """Check if the pet has overlapping bookings at the same daycare or any daycare."""
+        overlapping_bookings = Booking.objects.filter(
+            pet=pet,
+            daycare=daycare,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        ).exists()
+
+        if overlapping_bookings:
+            return True
+        
+        return Booking.objects.filter(
+            pet=pet,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        ).exclude(daycare=daycare).exists()
 
     def is_daycare_open(self, daycare, start_time):
         """Check if the daycare is open on the day of the booking."""
@@ -486,7 +507,6 @@ class BookingSerializer(serializers.ModelSerializer):
             return current_bookings_count < opening_hours.capacity
         
         return False
-
 
 
 class BlacklistedPetSerializer(serializers.ModelSerializer):
