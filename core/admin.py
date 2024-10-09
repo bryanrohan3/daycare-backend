@@ -46,7 +46,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 class OpeningHoursInline(admin.TabularInline):
     model = OpeningHours
     extra = 1
-    fields = ('day', 'from_hour', 'to_hour', 'closed')
+    fields = ('day', 'from_hour', 'to_hour', 'closed', 'capacity')
     verbose_name = 'Opening Hour'
     verbose_name_plural = 'Opening Hours'
 

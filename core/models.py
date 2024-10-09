@@ -88,6 +88,7 @@ class OpeningHours(models.Model):
     from_hour = models.TimeField(blank=True, null=True)
     to_hour = models.TimeField(blank=True, null=True)
     closed = models.BooleanField(default=False)
+    capacity = models.PositiveIntegerField(default=0)
 
     def clean(self):
         if self.closed:

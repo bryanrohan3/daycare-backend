@@ -170,7 +170,7 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OpeningHours
-        fields = ['day', 'day_name', 'from_hour', 'to_hour', 'closed']
+        fields = ['day', 'day_name', 'from_hour', 'to_hour', 'closed', 'capacity']
 
     def get_day_name(self, obj):
         return obj.get_day_display()
@@ -394,7 +394,7 @@ class PetNoteSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    products = serializers.PrimaryKeyRelatedField(many=True, queryset=Product.objects.all())
+    products = serializers.PrimaryKeyRelatedField(many=True, queryset=Product.objects.all(), required=False)
 
     class Meta:
         model = Booking
@@ -443,6 +443,9 @@ class BookingSerializer(serializers.ModelSerializer):
 
         if not self.is_within_opening_hours(daycare, start_time, end_time):
             raise serializers.ValidationError({"start_time": "The booking times are outside of the daycare's opening hours."})
+        
+        if not self.has_capacity(daycare, start_time, end_time):
+            raise serializers.ValidationError({"start_time": "The daycare has reached its capacity for the selected time."})
 
         return attrs
 
@@ -467,6 +470,22 @@ class BookingSerializer(serializers.ModelSerializer):
             if start_time_naive.time() < opening_start.time() or end_time_naive.time() > opening_end.time():
                 return False
         return True
+    
+    def has_capacity(self, daycare, start_time, end_time):
+        """Check if the daycare has capacity for the requested booking time."""
+        day_of_week = start_time.weekday() + 1
+        opening_hours = OpeningHours.objects.filter(daycare=daycare, day=day_of_week).first()
+
+        if opening_hours and opening_hours.capacity > 0:
+            current_bookings_count = Booking.objects.filter(
+                daycare=daycare,
+                start_time__lt=end_time,
+                end_time__gt=start_time
+            ).count()
+
+            return current_bookings_count < opening_hours.capacity
+        
+        return False
 
 
 
