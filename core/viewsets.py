@@ -410,7 +410,7 @@ class PetNoteViewSet(viewsets.ModelViewSet):
 class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
-    pagination_class = CustomPagination 
+    # pagination_class = CustomPagination 
 
     def get_queryset(self):
         user = self.request.user
@@ -424,6 +424,15 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         daycare_id = self.request.query_params.get('daycare')
         if daycare_id is not None:
             queryset = queryset.filter(daycare_id=daycare_id)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        if start_date is not None:
+            queryset = queryset.filter(start_time__date__gte=start_date)
+
+        if end_date is not None:
+            queryset = queryset.filter(end_time__date__lte=end_date)
 
         return queryset  
 
