@@ -343,6 +343,12 @@ class PetNameOnlySerializer(serializers.ModelSerializer):
         fields = ['id', 'pet_name', 'pet_bio', 'is_public', 'is_active']
 
 
+class PetSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pet
+        fields = ['id', 'pet_name']  # Only include pet ID and pet_name
+
+
 class PetSerializer(serializers.ModelSerializer):
     pet_types_display = serializers.SerializerMethodField()
     customers = serializers.SerializerMethodField()
@@ -395,10 +401,12 @@ class PetNoteSerializer(serializers.ModelSerializer):
 
 class BookingSerializer(serializers.ModelSerializer):
     products = serializers.PrimaryKeyRelatedField(many=True, queryset=Product.objects.all(), required=False)
+    customer_details = CustomerBasicProfileSerializer(source='customer', read_only=True)
+    pet_details = PetSimpleSerializer(source='pet', read_only=True)
 
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products']
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details']
         read_only_fields = ['status']
 
     def validate(self, attrs):
