@@ -406,7 +406,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details']
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details', 'checked_in']
         read_only_fields = ['status']
 
     def validate(self, attrs):
@@ -515,6 +515,16 @@ class BookingSerializer(serializers.ModelSerializer):
             return current_bookings_count < opening_hours.capacity
         
         return False
+    
+
+class CustomerNameSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = CustomerProfile
+        fields = ['id', 'first_name', 'last_name', 'username']
 
 
 class BlacklistedPetSerializer(serializers.ModelSerializer):

@@ -13,7 +13,7 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-# import timedelta
+from django.db.models import Q 
 from datetime import timedelta
 
 
@@ -96,34 +96,65 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
 
 class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = CustomerProfile.objects.all()
-    serializer_class = CustomerProfileSerializer
+    
+    def get_serializer_class(self):
+        if self.action == 'list' and 'name' in self.request.query_params:
+            return CustomerNameSerializer  
+        return CustomerProfileSerializer  
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
             return CustomerProfile.objects.none()
-        
-        queryset = super().get_queryset()
-        user = self.request.user
 
-        return queryset
-    
+        user = self.request.user
+        if hasattr(user, 'staffprofile'):
+            return self.filter_queryset_for_staff(user)
+        
+        return self.queryset.filter(user=user) 
+
+    def filter_queryset_for_staff(self, user):
+        name_query = self.request.query_params.get('name', '').strip()
+        if name_query:
+            return self.filter_customers_by_name(name_query)
+        return self.queryset
+
+    def filter_customers_by_name(self, name_query):
+        name_parts = name_query.split()
+        if len(name_parts) > 1:
+            first_name, last_name = name_parts[0], ' '.join(name_parts[1:])
+            return self.queryset.filter(
+                Q(user__first_name__icontains=first_name) & 
+                Q(user__last_name__icontains=last_name)
+            )
+        return self.queryset.filter(
+            Q(user__first_name__icontains=name_query) | 
+            Q(user__last_name__icontains=name_query)
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.user != request.user:
-            return Response({'error': 'You do not have permission to view this customer profile.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'You do not have permission to view this customer profile.'}, 
+                            status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='current', permission_classes=[IsCustomer])
     def current(self, request):
         """
-        Retrieve the staff profile of the currently authenticated user.
+        Retrieve the customer profile of the currently authenticated user.
         """
         user = request.user
         if hasattr(user, 'customerprofile'):
             serializer = self.get_serializer(user.customerprofile)
             return Response(serializer.data)
         return Response({'detail': 'Customer profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    
 
 class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = Daycare.objects.all()
