@@ -202,46 +202,67 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
     
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'POST']:
-            # Only allow owners to create products
+            # Only allow owners to create or update products
             permission_classes = [IsOwner]
+        elif self.request.method in ['GET']:
+            # Allow customers to view products
+            permission_classes = [permissions.IsAuthenticated | IsCustomer]  # Assuming IsCustomer is a defined permission class
         else:
-            permission_classes = [IsStaff]
+            permission_classes = [IsStaff]  # For other methods, restrict to staff only
+
         return [permission() for permission in permission_classes]
+
 
     def get_queryset(self):
         """
-        Restrict the queryset to products that belong to daycares the authenticated user works at.
-        Additionally, allow filtering by daycare ID via query parameters (?daycare=1).
+        Return products based on whether the user is staff or a customer.
+        Staff can see all products, while customers can filter by daycare.
         """
         request = self.request
+
+        # If the user is not authenticated, return no products
         if not request.user.is_authenticated:
             return Product.objects.none()
 
-        # Get the daycares associated with the authenticated user
+        # If the user is making a GET request, both staff and customers can view products
+        if request.method == 'GET':
+            queryset = Product.objects.all()  # Allow all products to be viewed
+
+            # Optionally filter by daycare if a daycare ID is provided in the query params
+            daycare_id = request.query_params.get('daycare')
+            if daycare_id:
+                try:
+                    daycare_id = int(daycare_id)
+                    queryset = queryset.filter(daycare__id=daycare_id)
+                except ValueError:
+                    return Product.objects.none()  # Invalid daycare ID format
+
+            return queryset
+
+        # For non-GET requests (e.g., POST, PUT, PATCH), restrict access to staff only
         try:
             staff_profile = StaffProfile.objects.get(user=request.user)
         except StaffProfile.DoesNotExist:
             return Product.objects.none()
 
+        # Restrict to products that belong to daycares the staff member is associated with
         user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
-
-        # Filter products to only include those that belong to the user's associated daycares
         queryset = Product.objects.filter(daycare__id__in=user_daycare_ids)
 
-        # Check if 'daycare' query parameter is provided to filter by specific daycare
+        # Further filter by daycare if a specific one is requested
         daycare_id = request.query_params.get('daycare')
         if daycare_id:
             try:
                 daycare_id = int(daycare_id)
-                # Ensure the user is associated with this daycare
                 if daycare_id in user_daycare_ids:
                     queryset = queryset.filter(daycare__id=daycare_id)
                 else:
-                    return Product.objects.none()  # User not associated with this daycare
+                    return Product.objects.none()  # Staff not associated with this daycare
             except ValueError:
                 return Product.objects.none()  # Invalid daycare ID format
-        
+
         return queryset
+
 
     def create(self, request, *args, **kwargs):
         """
