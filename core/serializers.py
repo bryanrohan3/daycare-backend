@@ -131,8 +131,12 @@ class BasicPetSerializer(serializers.ModelSerializer):
 
     def get_customers(self, obj):
         return CustomerBasicProfileSerializer(obj.customers.all(), many=True).data 
+    
 
-
+class BasicPetNameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pet
+        fields = ['id', 'pet_name']
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
@@ -521,10 +525,15 @@ class CustomerNameSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    pets = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
-        fields = ['id', 'first_name', 'last_name', 'username']
+        fields = ['id', 'first_name', 'last_name', 'username', 'pets']
+
+    def get_pets(self, obj):
+        # Use BasicPetSerializer to get pet names instead of IDs
+        return BasicPetNameSerializer(obj.pets.all(), many=True).data
 
 
 class BlacklistedPetSerializer(serializers.ModelSerializer):

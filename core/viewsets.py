@@ -211,17 +211,37 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
     def get_queryset(self):
         """
         Restrict the queryset to products that belong to daycares the authenticated user works at.
+        Additionally, allow filtering by daycare ID via query parameters (?daycare=1).
         """
         request = self.request
         if not request.user.is_authenticated:
             return Product.objects.none()
 
         # Get the daycares associated with the authenticated user
-        staff_profile = StaffProfile.objects.get(user=request.user)
+        try:
+            staff_profile = StaffProfile.objects.get(user=request.user)
+        except StaffProfile.DoesNotExist:
+            return Product.objects.none()
+
         user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
 
         # Filter products to only include those that belong to the user's associated daycares
-        return Product.objects.filter(daycare__id__in=user_daycare_ids)
+        queryset = Product.objects.filter(daycare__id__in=user_daycare_ids)
+
+        # Check if 'daycare' query parameter is provided to filter by specific daycare
+        daycare_id = request.query_params.get('daycare')
+        if daycare_id:
+            try:
+                daycare_id = int(daycare_id)
+                # Ensure the user is associated with this daycare
+                if daycare_id in user_daycare_ids:
+                    queryset = queryset.filter(daycare__id=daycare_id)
+                else:
+                    return Product.objects.none()  # User not associated with this daycare
+            except ValueError:
+                return Product.objects.none()  # Invalid daycare ID format
+        
+        return queryset
 
     def create(self, request, *args, **kwargs):
         """
