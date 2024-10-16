@@ -148,3 +148,13 @@ class BlacklistedPetAdmin(admin.ModelAdmin):
 
 # Register the BlacklistedPet model with the BlacklistedPetAdmin
 admin.site.register(BlacklistedPet, BlacklistedPetAdmin)
+
+
+class WaitlistAdmin(admin.ModelAdmin):
+    list_display = ('booking', 'customer_notified', 'waitlisted_at')
+    list_filter = ('customer_notified',)
+    search_fields = ('booking__customer__user__first_name', 'booking__customer__user__last_name', 'booking__pet__pet_name')
+    raw_id_fields = ('booking',)  # Useful for ForeignKey fields if you have a lot of bookings
+
+# Register the Waitlist model with the WaitlistAdmin class
+admin.site.register(Waitlist, WaitlistAdmin)

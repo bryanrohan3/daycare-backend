@@ -208,6 +208,8 @@ class Booking(models.Model):
     checked_in = models.BooleanField(default=False)
     recurrence = models.BooleanField(default=False)  # True if booking is part of a recurrence (this means books 4 weeks in advance on that day)
     products = models.ManyToManyField(Product, related_name='bookings')
+    is_waitlist = models.BooleanField(default=False)  
+    waitlist_accepted = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Booking({self.customer}, {self.pet}, {self.daycare}, {self.start_time}, {self.end_time})"
@@ -222,3 +224,12 @@ class BlacklistedPet(models.Model):
 
     def __str__(self):
         return f"{self.pet} is blacklisted from {self.daycare}"
+    
+
+class Waitlist(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE)
+    customer_notified = models.BooleanField(default=False)
+    waitlisted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Waitlist({self.booking}, notified: {self.customer_notified})"

@@ -486,7 +486,7 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Booking.objects.all()  
+        queryset = Booking.objects.all().filter()  
 
         if hasattr(user, 'customerprofile'):
             queryset = queryset.filter(customer=user.customerprofile)
@@ -523,6 +523,12 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         products = self.request.data.get('products', [])
         if products:
             booking.products.set(products)
+
+        if booking.is_waitlist and booking.waitlist_accepted:
+            Waitlist.objects.create(
+                booking=booking,
+                customer_notified=False 
+            )
 
         if booking.recurrence:
             self.create_recurring_bookings(booking)
@@ -608,6 +614,17 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         booking.checked_in = checked_in
         booking.save()
         return Response({'status': f'Pet {"checked in" if checked_in else "checked out"} successfully.'})
+    
+    @action(detail=True, methods=['post'], url_path='accept-waitlist')
+    def accept_waitlist(self, request, pk=None):
+        booking = self.get_object()
+        if booking.is_waitlist and not booking.waitlist_accepted:
+            booking.waitlist_accepted = True
+            booking.save()
+            # Add to waitlist
+            Waitlist.objects.create(booking=booking)
+            return Response({"message": "You have been added to the waitlist."}, status=status.HTTP_200_OK)
+        return Response({"message": "You cannot join the waitlist for this booking."}, status=status.HTTP_400_BAD_REQUEST)
 
     def _get_object(self, model, obj_id):
         """Generic method to retrieve an object by its ID, with permission handling."""
@@ -665,3 +682,8 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
             return model.objects.get(pk=obj_id)
         except model.DoesNotExist:
             return Response({'error': f'Invalid {model.__name__.lower()} ID.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = WaitlistSerializer
+    permission_classes = [IsStaff]

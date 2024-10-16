@@ -410,7 +410,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details', 'checked_in']
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details', 'checked_in', 'is_waitlist', 'waitlist_accepted']
         read_only_fields = ['status']
 
     def validate(self, attrs):
@@ -418,12 +418,11 @@ class BookingSerializer(serializers.ModelSerializer):
         user = request.user
         pet = attrs.get('pet')
         daycare = attrs.get('daycare')
-        products = attrs.get('products', [])
 
-        current_time = timezone.now() 
+        current_time = timezone.now()
 
         if hasattr(user, 'customerprofile'):
-            attrs['customer'] = user.customerprofile 
+            attrs['customer'] = user.customerprofile
         else:
             attrs['customer'] = attrs.get('customer')
 
@@ -440,13 +439,6 @@ class BookingSerializer(serializers.ModelSerializer):
         if blacklisted_pet:
             raise serializers.ValidationError({"pet": "This pet is blacklisted from this daycare."})
 
-        if daycare and products:
-            valid_product_ids = Product.objects.filter(daycare=daycare).values_list('id', flat=True)
-            product_ids = [product.id for product in products]
-            invalid_products = [product_id for product_id in product_ids if product_id not in valid_product_ids]
-            if invalid_products:
-                raise serializers.ValidationError({"products": "Some products do not belong to the specified daycare."})
-
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
 
@@ -455,14 +447,26 @@ class BookingSerializer(serializers.ModelSerializer):
 
         if not self.is_within_opening_hours(daycare, start_time, end_time):
             raise serializers.ValidationError({"start_time": "The booking times are outside of the daycare's opening hours."})
-        
-        if not self.has_capacity(daycare, start_time, end_time):
-            raise serializers.ValidationError({"start_time": "The daycare has reached its capacity for the selected time."})
 
         if self.has_overlapping_bookings(pet, daycare, start_time, end_time):
             raise serializers.ValidationError({"start_time": "This pet already has a booking during the requested time."})
 
+        # Check if the daycare has capacity
+        if not self.has_capacity(daycare, start_time, end_time):
+            # If no capacity, we can set the waitlist flag
+            attrs['is_waitlist'] = True  # Set waitlist flag
+            # Raise a warning but do not prevent booking creation
+            self.add_warning("The daycare has reached its capacity for the selected time, your booking will be on the waitlist.")
+
+        else:
+            attrs['is_waitlist'] = False  # Set as regular booking
+
         return attrs
+    
+    def add_warning(self, message):
+        # You could implement a logging mechanism or just print the warning.
+        # For example:
+        print(f"Warning: {message}")
 
     def has_overlapping_bookings(self, pet, daycare, start_time, end_time):
         """Check if the pet has overlapping bookings at the same daycare or any daycare."""
@@ -540,3 +544,9 @@ class BlacklistedPetSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlacklistedPet
         fields = ['id', 'pet', 'daycare', 'reason', 'date_blacklisted', 'is_active']
+
+
+class WaitlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Waitlist
+        fields = ['booking', 'customer_notified', 'waitlisted_at']
