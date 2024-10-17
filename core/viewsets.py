@@ -486,7 +486,7 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Booking.objects.all().filter()  
+        queryset = Booking.objects.all().filter(is_active=True)  
 
         if hasattr(user, 'customerprofile'):
             queryset = queryset.filter(customer=user.customerprofile)
@@ -532,7 +532,6 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
 
         if booking.recurrence:
             self.create_recurring_bookings(booking)
-
 
     def create_recurring_bookings(self, booking):
         for week in range(1, 5):  # 4 weeks
