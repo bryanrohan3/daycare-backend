@@ -547,6 +547,12 @@ class BlacklistedPetSerializer(serializers.ModelSerializer):
 
 
 class WaitlistSerializer(serializers.ModelSerializer):
+    booking = serializers.SerializerMethodField()
     class Meta:
         model = Waitlist
         fields = ['booking', 'customer_notified', 'waitlisted_at']
+
+    def get_booking(self, obj):
+        return BookingSerializer(obj.booking).data
+    
+    # need to make smaller booking serializer with just daycare name, pet and finer details just for waitlist display

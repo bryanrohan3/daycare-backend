@@ -486,7 +486,9 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Booking.objects.all().filter(is_active=True)  
+        queryset = Booking.objects.all().filter(is_active=True, is_waitlist=False)  
+
+        # I want to still be able to see bookings when is_waitlist = false I just don't want them displayed.
 
         if hasattr(user, 'customerprofile'):
             queryset = queryset.filter(customer=user.customerprofile)
@@ -686,3 +688,10 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
 class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = WaitlistSerializer
     permission_classes = [IsStaff]
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'staffprofile'):
+            return Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all())
+        return Waitlist.objects.none()
+    
