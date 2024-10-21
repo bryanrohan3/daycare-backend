@@ -710,7 +710,7 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         daycare_id = self.request.query_params.get('daycare')
 
         if hasattr(user, 'staffprofile'):
-            queryset = Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all())
+            queryset = Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all(), booking__is_waitlist=True)
         
         elif hasattr(user, 'customerprofile'):
             queryset = Waitlist.objects.filter(booking__customer=user.customerprofile)
