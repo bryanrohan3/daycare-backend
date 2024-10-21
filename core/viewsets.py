@@ -488,8 +488,6 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         user = self.request.user
         queryset = Booking.objects.all().filter(is_active=True, is_waitlist=False)  
 
-        # I want to still be able to see bookings when is_waitlist = false I just don't want them displayed.
-
         if hasattr(user, 'customerprofile'):
             queryset = queryset.filter(customer=user.customerprofile)
         elif hasattr(user, 'staffprofile'):
@@ -626,6 +624,22 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
             Waitlist.objects.create(booking=booking)
             return Response({"message": "You have been added to the waitlist."}, status=status.HTTP_200_OK)
         return Response({"message": "You cannot join the waitlist for this booking."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['patch'], permission_classes=[IsOwner])
+    def overbook(self, request, pk=None):
+        """Allows the owner to set is_waitlist to False (overbook)."""
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({"detail": "No Booking matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+
+        if booking.is_waitlist:
+            booking.is_waitlist = False
+            booking.save()
+            return Response({"message": "Booking has been overbooked."}, status=status.HTTP_200_OK)
+        
+        return Response({"message": "Booking is not on the waitlist."}, status=status.HTTP_400_BAD_REQUEST)
+
 
     def _get_object(self, model, obj_id):
         """Generic method to retrieve an object by its ID, with permission handling."""
