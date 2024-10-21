@@ -687,11 +687,22 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
 
 class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = WaitlistSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [IsStaff | IsCustomer]
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Waitlist.objects.none()  
+
+        daycare_id = self.request.query_params.get('daycare')
+
         if hasattr(user, 'staffprofile'):
-            return Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all())
-        return Waitlist.objects.none()
+            queryset = Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all())
+        
+        elif hasattr(user, 'customerprofile'):
+            queryset = Waitlist.objects.filter(booking__customer=user.customerprofile)
+
+        if daycare_id:
+            queryset = queryset.filter(booking__daycare=daycare_id)
+        
+        return queryset
     
