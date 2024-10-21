@@ -525,6 +525,13 @@ class BookingSerializer(serializers.ModelSerializer):
         return False
     
 
+class BookingWaitlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = ['id', 'customer', 'pet', 'daycare', 'start_time', 'end_time', 'status', 'is_active', 'recurrence', 'products', 'customer_details', 'pet_details', 'checked_in', 'is_waitlist', 'waitlist_accepted']
+        read_only_fields = ['status']
+    
+
 class CustomerNameSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
@@ -550,7 +557,7 @@ class WaitlistSerializer(serializers.ModelSerializer):
     booking = serializers.SerializerMethodField()
     class Meta:
         model = Waitlist
-        fields = ['booking', 'customer_notified', 'waitlisted_at']
+        fields = ['id', 'booking', 'customer_notified', 'waitlisted_at', 'customer_accepted', 'is_active']
 
     def get_booking(self, obj):
         return BookingSerializer(obj.booking).data

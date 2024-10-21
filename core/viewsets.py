@@ -624,21 +624,6 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
             Waitlist.objects.create(booking=booking)
             return Response({"message": "You have been added to the waitlist."}, status=status.HTTP_200_OK)
         return Response({"message": "You cannot join the waitlist for this booking."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['patch'], permission_classes=[IsOwner])
-    def overbook(self, request, pk=None):
-        """Allows the owner to set is_waitlist to False (overbook)."""
-        try:
-            booking = Booking.objects.get(pk=pk)
-        except Booking.DoesNotExist:
-            return Response({"detail": "No Booking matches the given query."}, status=status.HTTP_404_NOT_FOUND)
-
-        if booking.is_waitlist:
-            booking.is_waitlist = False
-            booking.save()
-            return Response({"message": "Booking has been overbooked."}, status=status.HTTP_200_OK)
-        
-        return Response({"message": "Booking is not on the waitlist."}, status=status.HTTP_400_BAD_REQUEST)
 
 
     def _get_object(self, model, obj_id):
@@ -705,7 +690,7 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Waitlist.objects.none()  
+        queryset = Waitlist.objects.none() 
 
         daycare_id = self.request.query_params.get('daycare')
 
@@ -716,7 +701,87 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
             queryset = Waitlist.objects.filter(booking__customer=user.customerprofile)
 
         if daycare_id:
-            queryset = queryset.filter(booking__daycare=daycare_id)
+            queryset = queryset.filter(booking__daycare=daycare_id, is_active=True)
         
         return queryset
+
+    def _check_daycare_association(self, user, daycare):
+        if hasattr(user, 'staffprofile'):
+            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+            if daycare.id not in user_daycare_ids:
+                raise PermissionDenied("You are not associated with this daycare.")
+        else:
+            raise PermissionDenied("You are not a staff member associated with any daycare.")
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsOwner])
+    def notify_customer(self, request, pk=None):
+        """Notify customer about their waitlist status."""
+        try:
+            waitlist = Waitlist.objects.get(pk=pk)
+            self._check_daycare_association(request.user, waitlist.booking.daycare)
+        except Waitlist.DoesNotExist:
+            return Response({"detail": "No Waitlist entry matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+
+        waitlist.customer_notified = True
+        waitlist.save()
+        return Response({"message": "Customer has been notified."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsCustomer])  
+    def accept_booking(self, request, pk=None):
+        """Customer accepts the booking."""
+        try:
+            waitlist = Waitlist.objects.get(pk=pk)
+
+            if waitlist.booking.customer.id != request.user.customerprofile.id:
+                return Response({"detail": "You do not have permission to accept this booking."}, status=status.HTTP_403_FORBIDDEN)
+
+            if not waitlist.customer_notified:
+                return Response({"detail": "You must be notified before accepting the booking."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Waitlist.DoesNotExist:
+            return Response({"detail": "No Waitlist entry matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+
+        waitlist.customer_accepted = True
+        waitlist.save()
+
+        booking = waitlist.booking
+        booking.is_waitlist = False
+        booking.waitlist_accepted = True  
+        booking.save()
+
+        return Response({"message": "Booking has been accepted."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsCustomer])  
+    def reject_booking(self, request, pk=None):
+        """Customer rejects the booking."""
+        try:
+            waitlist = Waitlist.objects.get(pk=pk)
+
+            if waitlist.booking.customer.id != request.user.customerprofile.id:
+                return Response({"detail": "You do not have permission to reject this booking."}, status=status.HTTP_403_FORBIDDEN)
+
+        except Waitlist.DoesNotExist:
+            return Response({"detail": "No Waitlist entry matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+
+        waitlist.is_active = False  
+        waitlist.save()
+
+        return Response({"message": "Booking has been rejected and is now inactive."}, status=status.HTTP_200_OK)
     
+    @action(detail=True, methods=['patch'], permission_classes=[IsOwner])
+    def uninvite_customer(self, request, pk=None):
+        """Uninvite customer and set customer_notified to False, only if customer_accepted is False."""
+        try:
+            waitlist = Waitlist.objects.get(pk=pk)
+            self._check_daycare_association(request.user, waitlist.booking.daycare)
+
+            if waitlist.customer_accepted:
+                return Response({"detail": "Cannot uninvite as the customer has already accepted the booking."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Waitlist.DoesNotExist:
+            return Response({"detail": "No Waitlist entry matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+
+        waitlist.customer_notified = False
+        waitlist.save()
+
+        return Response({"message": "Customer has been uninvited."}, status=status.HTTP_200_OK)

@@ -192,10 +192,10 @@ class PetNote(models.Model):
     def __str__(self):
         return f"Note for {self.pet.name} by {self.employee.user.get_full_name()}"
 
-
 class Booking(models.Model):
     class Status(models.TextChoices):
         ACCEPTED = 'accepted', 'Accepted'
+        WAITLISTED = 'waitlisted', 'Waitlisted'
         REJECTED = 'rejected', 'Rejected'
 
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE)
@@ -206,13 +206,20 @@ class Booking(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACCEPTED)
     is_active = models.BooleanField(default=True)
     checked_in = models.BooleanField(default=False)
-    recurrence = models.BooleanField(default=False)  # True if booking is part of a recurrence (this means books 4 weeks in advance on that day)
+    recurrence = models.BooleanField(default=False)  # Books 4 weeks in advance if true
     products = models.ManyToManyField(Product, related_name='bookings')
     is_waitlist = models.BooleanField(default=False)  
     waitlist_accepted = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Booking({self.customer}, {self.pet}, {self.daycare}, {self.start_time}, {self.end_time})"
+
+    @property
+    def dynamic_status(self):
+        if self.is_waitlist:
+            return self.Status.WAITLISTED
+        return self.Status.ACCEPTED if not self.waitlist_accepted else self.Status.REJECTED
+
     
 
 class BlacklistedPet(models.Model):
@@ -230,6 +237,8 @@ class Waitlist(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE)
     customer_notified = models.BooleanField(default=False)
     waitlisted_at = models.DateTimeField(auto_now_add=True)
+    customer_accepted = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"Waitlist({self.booking}, notified: {self.customer_notified})"
