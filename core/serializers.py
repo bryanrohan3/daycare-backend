@@ -453,19 +453,15 @@ class BookingSerializer(serializers.ModelSerializer):
 
         # Check if the daycare has capacity
         if not self.has_capacity(daycare, start_time, end_time):
-            # If no capacity, we can set the waitlist flag
             attrs['is_waitlist'] = True  # Set waitlist flag
-            # Raise a warning but do not prevent booking creation
             self.add_warning("The daycare has reached its capacity for the selected time, your booking will be on the waitlist.")
 
         else:
-            attrs['is_waitlist'] = False  # Set as regular booking
+            attrs['is_waitlist'] = False  
 
         return attrs
     
     def add_warning(self, message):
-        # You could implement a logging mechanism or just print the warning.
-        # For example:
         print(f"Warning: {message}")
 
     def has_overlapping_bookings(self, pet, daycare, start_time, end_time):
@@ -543,7 +539,6 @@ class CustomerNameSerializer(serializers.ModelSerializer):
         fields = ['id', 'first_name', 'last_name', 'username', 'pets']
 
     def get_pets(self, obj):
-        # Use BasicPetSerializer to get pet names instead of IDs
         return BasicPetNameSerializer(obj.pets.all(), many=True).data
 
 
@@ -563,3 +558,20 @@ class WaitlistSerializer(serializers.ModelSerializer):
         return BookingSerializer(obj.booking).data
     
     # need to make smaller booking serializer with just daycare name, pet and finer details just for waitlist display
+
+# class PostSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Post
+#         fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'pets', 'status', 'tagged_pets']
+
+
+# class LikeSerilaizer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Like
+#         fields = ['id', 'user', 'post']
+
+
+# class CommentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Comment
+#         fields = ['id', 'user', 'post', 'text', 'is_active', 'date_time_created']

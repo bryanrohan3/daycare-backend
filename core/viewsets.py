@@ -74,7 +74,6 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
         if hasattr(user, 'staffprofile'):
             staff_profile = user.staffprofile
             if staff_profile.role == 'O':
-                # Owners can see all staff profiles
                 return queryset
             else:
                 # Employees can only see their own profile
@@ -226,7 +225,7 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
 
         # If the user is making a GET request, both staff and customers can view products
         if request.method == 'GET':
-            queryset = Product.objects.all()  # Allow all products to be viewed
+            queryset = Product.objects.all() 
 
             # Optionally filter by daycare if a daycare ID is provided in the query params
             daycare_id = request.query_params.get('daycare')
@@ -239,7 +238,6 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
 
             return queryset
 
-        # For non-GET requests (e.g., POST, PUT, PATCH), restrict access to staff only
         try:
             staff_profile = StaffProfile.objects.get(user=request.user)
         except StaffProfile.DoesNotExist:
@@ -447,9 +445,10 @@ class PetViewSet(viewsets.GenericViewSet,
         self._check_customer_permissions(pet)
 
         pet.generate_invite_token()
-        invite_link = f"http://127.0.0.1:8000/api/pet/invite/{pet.invite_token}/"
+        invite_link = f"http://127.0.0.1:8000/api/pet/invite/{pet.invite_token}/" 
         return Response({"invite_link": invite_link})
 
+    # TODO: fix this url pattern
     @action(detail=False, methods=['post'], url_path='invite/(?P<invite_token>[^/.]+)')
     def accept_invite(self, request, invite_token=None):
         customer = request.user.customerprofile
@@ -461,7 +460,7 @@ class PetViewSet(viewsets.GenericViewSet,
 
         if customer not in pet.customers.all():
             pet.customers.add(customer)
-            pet.invite_token = None  # Clear the token once used
+            pet.invite_token = None  
             pet.save()
             return Response({"detail": f"You are now a co-owner of {pet.pet_name}."})
         else:
@@ -484,6 +483,7 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
     serializer_class = BookingSerializer
     # pagination_class = CustomPagination 
 
+    # TODO: Add Pagination to Bookings
     def get_queryset(self):
         user = self.request.user
         queryset = Booking.objects.all().filter(is_active=True, is_waitlist=False)  
@@ -516,7 +516,8 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         customer = self._get_customer(user)
 
         self._check_pet_ownership(customer, pet)
-        self._check_daycare_association(user, daycare)
+        # self._check_daycare_association(user, daycare)
+        check_daycare_association(user, daycare)
 
         booking = serializer.save(pet=pet, daycare=daycare, customer=customer)
 
@@ -533,6 +534,7 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         if booking.recurrence:
             self.create_recurring_bookings(booking)
 
+    # TODO: need To add Recurring booking to Frontend Button
     def create_recurring_bookings(self, booking):
         for week in range(1, 5):  # 4 weeks
             new_start_time = booking.start_time + timedelta(weeks=week)
@@ -563,11 +565,11 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         if not pet.customers.filter(id=customer.id).exists():
             raise PermissionDenied("You do not own this pet.")
 
-    def _check_daycare_association(self, user, daycare):
-        if hasattr(user, 'staffprofile'):
-            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
-            if daycare.id not in user_daycare_ids:
-                raise PermissionDenied("You are not associated with this daycare.")
+    # def _check_daycare_association(self, user, daycare):
+    #     if hasattr(user, 'staffprofile'):
+    #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+    #         if daycare.id not in user_daycare_ids:
+    #             raise PermissionDenied("You are not associated with this daycare.")
 
     @action(detail=True, methods=['patch'], permission_classes=[IsStaff])
     def edit_booking(self, request, pk=None):
@@ -602,6 +604,9 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         return self._toggle_check_in_out(request, checked_in=False)
 
     def _toggle_check_in_out(self, request, checked_in):
+        """
+        toggles the check in and check out for bookings
+        """
         booking = self.get_object()
 
         if not booking.is_active:
@@ -620,7 +625,6 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         if booking.is_waitlist and not booking.waitlist_accepted:
             booking.waitlist_accepted = True
             booking.save()
-            # Add to waitlist
             Waitlist.objects.create(booking=booking)
             return Response({"message": "You have been added to the waitlist."}, status=status.HTTP_200_OK)
         return Response({"message": "You cannot join the waitlist for this booking."}, status=status.HTTP_400_BAD_REQUEST)
@@ -653,7 +657,9 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
 
         daycare = self._get_object(Daycare, daycare_id)
 
-        self._check_daycare_association(user, daycare)
+        # self._check_daycare_association(user, daycare)
+        check_daycare_association(user, daycare)
+
 
         serializer.save()
 
@@ -663,19 +669,22 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
         blacklisted_pet = self.get_object() 
         user = request.user
 
-        self._check_daycare_association(user, blacklisted_pet.daycare)
+        # self._check_daycare_association(user, blacklisted_pet.daycare)
+        #TODO: Double Check this one
+        check_daycare_association(user, blacklisted_pet.daycare)
 
         blacklisted_pet.is_active = False
         blacklisted_pet.save()
         return Response({'status': 'Pet unblacklisted successfully.'})
 
-    def _check_daycare_association(self, user, daycare):
-        if hasattr(user, 'staffprofile'):
-            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
-            if daycare.id not in user_daycare_ids:
-                raise PermissionDenied("You are not associated with this daycare.")
-        else:
-            raise PermissionDenied("You are not a staff member associated with any daycare.")
+    # def _check_daycare_association(self, user, daycare):
+    #     if hasattr(user, 'staffprofile'):
+    #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+    #         if daycare.id not in user_daycare_ids:
+    #             raise PermissionDenied("You are not associated with this daycare.")
+    #     else:
+    #         raise PermissionDenied("You are not a staff member associated with any daycare.")
+        # check_daycare_association(user, blacklisted_pet.daycare)
 
     def _get_object(self, model, obj_id):
         try:
@@ -705,20 +714,21 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         
         return queryset
 
-    def _check_daycare_association(self, user, daycare):
-        if hasattr(user, 'staffprofile'):
-            user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
-            if daycare.id not in user_daycare_ids:
-                raise PermissionDenied("You are not associated with this daycare.")
-        else:
-            raise PermissionDenied("You are not a staff member associated with any daycare.")
+    # def _check_daycare_association(self, user, daycare):
+    #     if hasattr(user, 'staffprofile'):
+    #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+    #         if daycare.id not in user_daycare_ids:
+    #             raise PermissionDenied("You are not associated with this daycare.")
+    #     else:
+    #         raise PermissionDenied("You are not a staff member associated with any daycare.")
+
 
     @action(detail=True, methods=['patch'], permission_classes=[IsOwner])
     def notify_customer(self, request, pk=None):
         """Notify customer about their waitlist status."""
         try:
             waitlist = Waitlist.objects.get(pk=pk)
-            self._check_daycare_association(request.user, waitlist.booking.daycare)
+            check_daycare_association(request.user, waitlist.booking.daycare)
         except Waitlist.DoesNotExist:
             return Response({"detail": "No Waitlist entry matches the given query."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -773,7 +783,7 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         """Uninvite customer and set customer_notified to False, only if customer_accepted is False."""
         try:
             waitlist = Waitlist.objects.get(pk=pk)
-            self._check_daycare_association(request.user, waitlist.booking.daycare)
+            check_daycare_association(request.user, waitlist.booking.daycare)
 
             if waitlist.customer_accepted:
                 return Response({"detail": "Cannot uninvite as the customer has already accepted the booking."}, status=status.HTTP_400_BAD_REQUEST)
@@ -785,3 +795,8 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         waitlist.save()
 
         return Response({"message": "Customer has been uninvited."}, status=status.HTTP_200_OK)
+
+
+# TODO
+# Reusing staff.profile.role == "O"  alot -> make a function for this
+# Check Pet Ownership -> I have a _checke_pet_ownership and _check_customer_permission -> make a helper function to do just one

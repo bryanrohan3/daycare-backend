@@ -1,5 +1,6 @@
 from rest_framework import permissions
 from .models import *
+from rest_framework.exceptions import PermissionDenied
 
 SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS', 'POST')
 
@@ -69,3 +70,16 @@ class IsCustomer(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         # Allow any authenticated wholesaler to perform any action
         return True
+    
+
+# Check Staff works for Daycare
+def check_daycare_association(user, daycare):
+    """
+    Helper function to check if the user is associated with the provided daycare.
+    """
+    if hasattr(user, 'staffprofile'):
+        user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
+        if daycare.id not in user_daycare_ids:
+            raise PermissionDenied("You are not associated with this daycare.")
+    else:
+        raise PermissionDenied("You are not a staff member associated with any daycare.")
