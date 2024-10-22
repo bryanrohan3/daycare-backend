@@ -244,49 +244,49 @@ class Waitlist(models.Model):
         return f"Waitlist({self.booking}, notified: {self.customer_notified})"
     
 
-# class Post(models.Model):
-#     class Status(models.TextChoices):
-#         PUBLIC = 'public', 'Public'
-#         PRIVATE = 'private', 'Private'
-#         PROTECTED = 'protected', 'Protected'
-#     user = models.ForeignKey(StaffProfile, on_delete=models.CASCADE)
-#     daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
-#     # pets -> post tags Pets [1,5]
-#     caption = models.CharField(max_length=250)
-#     date_time_created = models.DateTimeField(auto_now_add=True)
-#     is_active = models.BooleanField(default=True)
-#     status = models.CharField(max_length=50, choices=Status.choices)
-#     tagged_pets = models.ManyToManyField(Pet, related_name='pets')
+class Post(models.Model):
+    class Status(models.TextChoices):
+        PUBLIC = 'public', 'Public'
+        PRIVATE = 'private', 'Private'
+        PROTECTED = 'protected', 'Protected'
+    user = models.ForeignKey(StaffProfile, on_delete=models.CASCADE)
+    daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
+    # pets -> post tags Pets [1,5]
+    caption = models.CharField(max_length=250)
+    date_time_created = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=50, choices=Status.choices)
+    tagged_pets = models.ManyToManyField(Pet, related_name='pets')
 
-#     # Check on Status
-#     # psuedo
-#     # if customer.booking__in_daycare:
-#         # return Protected
-#     # elif pet.is_public=False:
-#     #   return Private 
-#     # else:
-#     #   return Public
+    # Check on Status
+    # psuedo
+    # if customer.booking__in_daycare:
+        # return Protected
+    # elif pet.is_public=False:
+    #   return Private 
+    # else:
+    #   return Public
 
 
-#     def __str__(self):
-#         return f'Post created by {self.user} at {self.date_time_created}'
+    def __str__(self):
+        return f'Post created by {self.user} at {self.date_time_created}'
     
 
-# class Like(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     post = models.ForeignKey(Post, on_delete=models.CASCADE) # User since both Staff and Customer can like posts
+class Like(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE) # User since both Staff and Customer can like posts
 
-#     def _str__(self):
-#         return f'{self.user.username} liked {self.post}'
+    def _str__(self):
+        return f'{self.user.username} liked {self.post}'
 
 
-# class Comment(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     post = models.ForeignKey(Post, on_delete=models.CASCADE)
-#     text = models.TextField(max_length=200)
-#     is_active = models.BooleanField(default=True)
-#     date_time_created = models.DateTimeField(auto_now_add=True)
+class Comment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    text = models.TextField(max_length=200)
+    is_active = models.BooleanField(default=True)
+    date_time_created = models.DateTimeField(auto_now_add=True)
 
-#     def __str__(self):  
-#         return f'Comment by {self.user.username} on {self.post}'
+    def __str__(self):  
+        return f'Comment by {self.user.username} on {self.post}'
     

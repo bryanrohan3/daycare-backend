@@ -559,19 +559,19 @@ class WaitlistSerializer(serializers.ModelSerializer):
     
     # need to make smaller booking serializer with just daycare name, pet and finer details just for waitlist display
 
-# class PostSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Post
-#         fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'pets', 'status', 'tagged_pets']
+class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'pets', 'status', 'tagged_pets']
 
 
-# class LikeSerilaizer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Like
-#         fields = ['id', 'user', 'post']
+class LikeSerilaizer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ['id', 'user', 'post']
 
 
-# class CommentSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Comment
-#         fields = ['id', 'user', 'post', 'text', 'is_active', 'date_time_created']
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'post', 'text', 'is_active', 'date_time_created']
