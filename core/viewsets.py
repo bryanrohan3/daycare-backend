@@ -921,8 +921,18 @@ class CommentViewSet(mixins.CreateModelMixin,
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Comment.DoesNotExist:
             return Response({"error": "Comment not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=True, methods=['patch'])
+    def soft_delete(self, request, *args, **kwargs):
+        comment_id = kwargs.get('pk')
 
-
+        try:
+            comment = Comment.objects.get(id=comment_id, user=request.user)
+            comment.is_active = False
+            comment.save()
+            return Response({"detail": "Comment deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except Comment.DoesNotExist:
+            return Response({"error": "Comment not found."}, status=status.HTTP_404_NOT_FOUND)
 
 # TODO
 # Reusing staff.profile.role == "O"  alot -> make a function for this
