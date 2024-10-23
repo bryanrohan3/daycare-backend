@@ -823,8 +823,27 @@ class PostViewSet(viewsets.ModelViewSet):
 
         post = serializer.save(user=user)
 
+        tagged_pet_ids = serializer.validated_data.get('tagged_pets', [])
+        if tagged_pet_ids:
+            post.tagged_pets.set(tagged_pet_ids)  
+
+        post.update_tagged_pets_status()  
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['patch'], url_path='deactivate')
+    def deactivate_post(self, request, pk=None):
+        try:
+            post = self.get_object()
+            check_daycare_association(request.user, post.daycare)
+            post.is_active = False
+            post.save()
+            return Response({"detail": "Post deactivated successfully."}, status=status.HTTP_200_OK)
+
+        except Post.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
 
 # TODO

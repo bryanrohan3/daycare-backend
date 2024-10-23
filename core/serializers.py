@@ -566,8 +566,12 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'tagged_pets']
-        read_only_fields = ['user'] 
+        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets']
+        read_only_fields = ['user', 'status']
+
+    def validate_tagged_pets(self, tagged_pets):
+        # Ensure we return only the IDs in the validated data
+        return [pet.id for pet in tagged_pets]
 
 
 class LikeSerilaizer(serializers.ModelSerializer):

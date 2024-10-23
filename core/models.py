@@ -249,27 +249,24 @@ class Post(models.Model):
         PUBLIC = 'public', 'Public'
         PRIVATE = 'private', 'Private'
         PROTECTED = 'protected', 'Protected'
+    
     user = models.ForeignKey(StaffProfile, on_delete=models.CASCADE)
     daycare = models.ForeignKey(Daycare, on_delete=models.CASCADE)
-    # pets -> post tags Pets [1,5]
     caption = models.CharField(max_length=250)
     date_time_created = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     status = models.CharField(max_length=50, choices=Status.choices)
-    tagged_pets = models.ManyToManyField(Pet, related_name='pets')
-
-    # Check on Status
-    # psuedo
-    # if customer.booking__in_daycare:
-        # return Protected
-    # elif pet.is_public=False:
-    #   return Private 
-    # else:
-    #   return Public
-
+    tagged_pets = models.ManyToManyField(Pet, related_name='posts')
 
     def __str__(self):
         return f'Post created by {self.user} at {self.date_time_created}'
+    
+    def update_tagged_pets_status(self):
+        if self.tagged_pets.filter(is_public=False).exists():
+            self.status = Post.Status.PRIVATE
+        else:
+            self.status = Post.Status.PUBLIC
+        self.save()  
     
 
 class Like(models.Model):
