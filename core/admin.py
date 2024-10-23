@@ -172,3 +172,15 @@ class PostAdmin(admin.ModelAdmin):
         return queryset.select_related('user', 'daycare')
 
 admin.site.register(Post, PostAdmin)
+
+
+class LikeAdmin(admin.ModelAdmin):
+    list_display = ('user', 'post', 'id')  
+    list_filter = ('post',)  
+    search_fields = ('user__username', 'post__title')  
+    def get_queryset(self, request):
+        """Optimize query by selecting related fields."""
+        queryset = super().get_queryset(request)
+        return queryset.select_related('user', 'post')  
+
+admin.site.register(Like, LikeAdmin)

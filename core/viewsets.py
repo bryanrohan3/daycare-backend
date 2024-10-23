@@ -797,7 +797,7 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         return Response({"message": "Customer has been uninvited."}, status=status.HTTP_200_OK)
     
 
-class PostViewSet(viewsets.ModelViewSet):
+class PostViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [IsStaff]
@@ -844,6 +844,39 @@ class PostViewSet(viewsets.ModelViewSet):
         except PermissionDenied as e:
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
+
+class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    serializer_class = LikeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        post_id = request.data.get('post')
+        
+        if not post_id:
+            return Response({"error": "Post ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if Like.objects.filter(user=request.user, post=post).exists():
+            return Response({"error": "You have already liked this post."}, status=status.HTTP_400_BAD_REQUEST)
+
+        like = Like.objects.create(user=request.user, post=post)
+        serializer = self.get_serializer(like)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        like_id = kwargs.get('pk')  
+
+        try:
+            like = Like.objects.get(id=like_id, user=request.user)  
+            like.delete()  
+            return Response({"detail": "Like removed successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except Like.DoesNotExist:
+            return Response({"error": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
 
 # TODO
 # Reusing staff.profile.role == "O"  alot -> make a function for this

@@ -574,7 +574,7 @@ class PostSerializer(serializers.ModelSerializer):
         return [pet.id for pet in tagged_pets]
 
 
-class LikeSerilaizer(serializers.ModelSerializer):
+class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
         fields = ['id', 'user', 'post']

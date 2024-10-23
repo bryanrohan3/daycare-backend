@@ -18,6 +18,7 @@ api_router.register(r'booking', viewsets.BookingViewSet, basename='booking')
 api_router.register(r'blacklist', viewsets.BlacklistedPetViewSet, basename='blacklist')
 api_router.register(r'waitlist', viewsets.WaitlistViewSet, basename='waitlist')
 api_router.register(r'post', viewsets.PostViewSet, basename='post')
+api_router.register(r'like', viewsets.LikeViewSet, basename='like')
 
 
 urlpatterns = [
