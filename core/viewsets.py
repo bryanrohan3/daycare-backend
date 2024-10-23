@@ -812,8 +812,7 @@ class PostViewSet(viewsets.ModelViewSet):
         try:
             daycare_obj = Daycare.objects.get(id=daycare_id)
 
-            if not user.daycares.filter(id=daycare_id).exists():
-                return Response({"detail": "You are not a staff member associated with this daycare."}, status=status.HTTP_403_FORBIDDEN)
+            check_daycare_association(user.user, daycare_obj) 
 
         except Daycare.DoesNotExist:
             return Response({"error": "Daycare not found."}, status=status.HTTP_404_NOT_FOUND)
