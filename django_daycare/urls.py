@@ -19,7 +19,7 @@ api_router.register(r'blacklist', viewsets.BlacklistedPetViewSet, basename='blac
 api_router.register(r'waitlist', viewsets.WaitlistViewSet, basename='waitlist')
 api_router.register(r'post', viewsets.PostViewSet, basename='post')
 api_router.register(r'like', viewsets.LikeViewSet, basename='like')
-
+api_router.register(r'comment', viewsets.CommentViewSet, basename='comment')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

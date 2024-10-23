@@ -877,6 +877,52 @@ class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Destroy
             return Response({"detail": "Like removed successfully."}, status=status.HTTP_204_NO_CONTENT)
         except Like.DoesNotExist:
             return Response({"error": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class CommentViewSet(mixins.CreateModelMixin, 
+                     mixins.ListModelMixin, 
+                     mixins.UpdateModelMixin, 
+                     viewsets.GenericViewSet):  
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Comment.objects.filter(is_active=True)
+
+    def create(self, request, *args, **kwargs):
+        post_id = request.data.get('post')
+        text = request.data.get('text')
+
+        if not post_id or not text:
+            return Response({"error": "Post ID and comment text are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        comment = Comment.objects.create(user=request.user, post=post, text=text)
+        serializer = self.get_serializer(comment)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        comment_id = kwargs.get('pk')
+
+        try:
+            comment = Comment.objects.get(id=comment_id, user=request.user)
+
+            text = request.data.get('text')
+            if text:
+                comment.text = text
+                comment.save()
+
+            serializer = self.get_serializer(comment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Comment.DoesNotExist:
+            return Response({"error": "Comment not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 # TODO
 # Reusing staff.profile.role == "O"  alot -> make a function for this
