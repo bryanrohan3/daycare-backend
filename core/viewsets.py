@@ -795,6 +795,36 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         waitlist.save()
 
         return Response({"message": "Customer has been uninvited."}, status=status.HTTP_200_OK)
+    
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [IsStaff]
+
+    def create(self, request, *args, **kwargs):
+        user = request.user.staffprofile
+        daycare_id = request.data.get('daycare')
+
+        if not daycare_id:
+            return Response({"error": "Daycare ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            daycare_obj = Daycare.objects.get(id=daycare_id)
+
+            if not user.daycares.filter(id=daycare_id).exists():
+                return Response({"detail": "You are not a staff member associated with this daycare."}, status=status.HTTP_403_FORBIDDEN)
+
+        except Daycare.DoesNotExist:
+            return Response({"error": "Daycare not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        post = serializer.save(user=user)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 
 # TODO

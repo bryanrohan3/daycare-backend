@@ -560,9 +560,14 @@ class WaitlistSerializer(serializers.ModelSerializer):
     # need to make smaller booking serializer with just daycare name, pet and finer details just for waitlist display
 
 class PostSerializer(serializers.ModelSerializer):
+    tagged_pets = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Pet.objects.all(), required=False  
+    )
+
     class Meta:
         model = Post
-        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'pets', 'status', 'tagged_pets']
+        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'tagged_pets']
+        read_only_fields = ['user'] 
 
 
 class LikeSerilaizer(serializers.ModelSerializer):
