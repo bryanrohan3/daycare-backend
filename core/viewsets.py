@@ -18,7 +18,8 @@ from datetime import timedelta
 
 
 class CustomPagination(PageNumberPagination):
-    page_size = 10  
+    page_size = 2
+
     page_size_query_param = 'page_size'
     max_page_size = 1000
 
@@ -801,6 +802,7 @@ class PostViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Retri
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [IsStaff]
+    pagination_class = CustomPagination
 
     def create(self, request, *args, **kwargs):
         user = request.user.staffprofile
@@ -827,6 +829,11 @@ class PostViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Retri
             post.tagged_pets.set(tagged_pet_ids)  
 
         post.update_tagged_pets_status()  
+
+        page = self.paginate_queryset(post)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -879,10 +886,7 @@ class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Destroy
             return Response({"error": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
         
 
-class CommentViewSet(mixins.CreateModelMixin, 
-                     mixins.ListModelMixin, 
-                     mixins.UpdateModelMixin, 
-                     viewsets.GenericViewSet):  
+class CommentViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):  
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 

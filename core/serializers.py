@@ -563,6 +563,7 @@ class PostSerializer(serializers.ModelSerializer):
     tagged_pets = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Pet.objects.all(), required=False  
     )
+    daycare = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -572,6 +573,9 @@ class PostSerializer(serializers.ModelSerializer):
     def validate_tagged_pets(self, tagged_pets):
         # Ensure we return only the IDs in the validated data
         return [pet.id for pet in tagged_pets]
+    
+    def get_daycare(self, obj):
+        return BasicDaycareSerializerStaff(obj.daycare).data
 
 
 class LikeSerializer(serializers.ModelSerializer):
