@@ -18,7 +18,7 @@ from datetime import timedelta
 
 
 class CustomPagination(PageNumberPagination):
-    page_size = 2
+    page_size = 10
 
     page_size_query_param = 'page_size'
     max_page_size = 1000
@@ -891,7 +891,13 @@ class CommentViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Upda
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Comment.objects.filter(is_active=True)
+        post_id = self.request.query_params.get('post')
+        queryset = Comment.objects.filter(is_active=True)
+
+        if post_id:
+            queryset = queryset.filter(post_id=post_id)
+        
+        return queryset
 
     def create(self, request, *args, **kwargs):
         post_id = request.data.get('post')
