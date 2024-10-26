@@ -104,7 +104,7 @@ class BasicDaycareSerializerStaff(serializers.ModelSerializer):
 class BasicUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name']
+        fields = ['first_name', 'last_name', 'username', 'id']
 
 class BasicRosterStaffProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name')
@@ -585,6 +585,10 @@ class LikeSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
     class Meta:
         model = Comment
         fields = ['id', 'user', 'post', 'text', 'is_active', 'date_time_created']
+
+    def  get_user(self, obj):
+        return BasicUserSerializer(obj.user).data
