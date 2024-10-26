@@ -563,11 +563,12 @@ class PostSerializer(serializers.ModelSerializer):
     tagged_pets = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Pet.objects.all(), required=False  
     )
+    pet_names = serializers.SerializerMethodField()
     daycare = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets']
+        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets', 'pet_names']
         read_only_fields = ['user', 'status']
 
     def validate_tagged_pets(self, tagged_pets):
@@ -576,6 +577,9 @@ class PostSerializer(serializers.ModelSerializer):
     
     def get_daycare(self, obj):
         return BasicDaycareSerializerStaff(obj.daycare).data
+    
+    def get_pet_names(self, obj):
+        return BasicPetNameSerializer(obj.tagged_pets.all(), many=True).data
 
 
 class LikeSerializer(serializers.ModelSerializer):
