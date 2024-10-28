@@ -852,13 +852,19 @@ class PostViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Retri
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
 
-class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+class LikeViewSet(mixins.CreateModelMixin, 
+                  mixins.ListModelMixin, 
+                  mixins.DestroyModelMixin, 
+                  viewsets.GenericViewSet):
     serializer_class = LikeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return Like.objects.filter(user=self.request.user)
+
     def create(self, request, *args, **kwargs):
-        post_id = request.data.get('post')
-        
+        post_id = request.query_params.get('post') 
+
         if not post_id:
             return Response({"error": "Post ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -879,8 +885,8 @@ class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Destroy
         like_id = kwargs.get('pk')  
 
         try:
-            like = Like.objects.get(id=like_id, user=request.user)  
-            like.delete()  
+            like = Like.objects.get(id=like_id, user=request.user)
+            like.delete()
             return Response({"detail": "Like removed successfully."}, status=status.HTTP_204_NO_CONTENT)
         except Like.DoesNotExist:
             return Response({"error": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
