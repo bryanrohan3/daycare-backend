@@ -161,7 +161,7 @@ admin.site.register(Waitlist, WaitlistAdmin)
 
 
 class PostAdmin(admin.ModelAdmin):
-    list_display = ('user', 'daycare', 'caption', 'date_time_created', 'is_active')  
+    list_display = ('user', 'daycare__daycare_name', 'caption', 'date_time_created', 'is_active')  
     list_filter = ('daycare', 'is_active')  
     search_fields = ('user__user__first_name', 'user__user__last_name', 'caption', 'daycare__daycare_name')  
     raw_id_fields = ('user', 'daycare')  

@@ -564,18 +564,18 @@ class PostSerializer(serializers.ModelSerializer):
         many=True, queryset=Pet.objects.all(), required=False  
     )
     pet_names = serializers.SerializerMethodField()
-    daycare = serializers.SerializerMethodField()
+    daycare_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ['id', 'user', 'daycare', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets', 'pet_names']
+        fields = ['id', 'user', 'daycare', 'daycare_name', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets', 'pet_names']
         read_only_fields = ['user', 'status']
 
     def validate_tagged_pets(self, tagged_pets):
         # Ensure we return only the IDs in the validated data
         return [pet.id for pet in tagged_pets]
     
-    def get_daycare(self, obj):
+    def get_daycare_name(self, obj):
         return BasicDaycareSerializerStaff(obj.daycare).data
     
     def get_pet_names(self, obj):

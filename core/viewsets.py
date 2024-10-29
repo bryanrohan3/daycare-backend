@@ -415,13 +415,18 @@ class PetViewSet(viewsets.GenericViewSet,
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Pet.objects.filter(is_active=True).distinct()
 
         if hasattr(user, 'customerprofile'):
-            # Show all active pets to customers, including private ones
-            return Pet.objects.filter(is_active=True).distinct()
-        else:
-            # Allow non-customers to see all pets (public and private) but restrict the details later
-            return Pet.objects.filter(is_active=True).distinct()
+            # If the user is a customer, show all active pets including private ones
+            queryset = queryset.filter(customers=user.customerprofile)
+
+        # Filter by pet_name if provided in the query parameters
+        pet_name = self.request.query_params.get('pet_name', None)
+        if pet_name:
+            queryset = queryset.filter(pet_name__icontains=pet_name)
+
+        return queryset
 
     def perform_create(self, serializer):
         self._check_customer_permissions()
@@ -449,7 +454,6 @@ class PetViewSet(viewsets.GenericViewSet,
         invite_link = f"http://127.0.0.1:8000/api/pet/invite/{pet.invite_token}/" 
         return Response({"invite_link": invite_link})
 
-    # TODO: fix this url pattern
     @action(detail=False, methods=['post'], url_path='invite/(?P<invite_token>[^/.]+)')
     def accept_invite(self, request, invite_token=None):
         customer = request.user.customerprofile
@@ -466,7 +470,7 @@ class PetViewSet(viewsets.GenericViewSet,
             return Response({"detail": f"You are now a co-owner of {pet.pet_name}."})
         else:
             return Response({"detail": "You are already a co-owner of this pet."}, status=status.HTTP_400_BAD_REQUEST)
-
+        
 
 class PetNoteViewSet(viewsets.ModelViewSet):
     queryset = PetNote.objects.all()
@@ -830,10 +834,10 @@ class PostViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Retri
 
         post.update_tagged_pets_status()  
 
-        page = self.paginate_queryset(post)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        # page = self.paginate_queryset(post)
+        # if page is not None:
+        #     serializer = self.get_serializer(page, many=True)
+        #     return self.get_paginated_response(serializer.data)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
