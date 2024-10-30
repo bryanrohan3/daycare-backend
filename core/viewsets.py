@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -45,7 +45,7 @@ class UserViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Retri
         return super().get_serializer_class()
 
 
-    @action(detail=False, methods=['POST'], permission_classes=[])
+    @action(detail=False, methods=['POST'])
     def login(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -201,112 +201,88 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_permissions(self):
-        if self.request.method in ['PUT', 'PATCH', 'POST']:
-            # Only allow owners to create or update products
-            permission_classes = [IsOwner]
-        elif self.request.method in ['GET']:
-            # Allow customers to view products
-            permission_classes = [permissions.IsAuthenticated | IsCustomer]  # Assuming IsCustomer is a defined permission class
-        else:
-            permission_classes = [IsStaff]  # For other methods, restrict to staff only
-
+        """
+        Set permissions based on request method.
+        """
+        method_permissions = {
+            'POST': [IsOwner],
+            'PUT': [IsOwner],
+            'PATCH': [IsOwner],
+            'GET': [permissions.IsAuthenticated | IsCustomer],
+            'DELETE': [IsStaff]
+        }
+        permission_classes = method_permissions.get(self.request.method, [IsStaff])
         return [permission() for permission in permission_classes]
-
 
     def get_queryset(self):
         """
-        Return products based on whether the user is staff or a customer.
-        Staff can see all products, while customers can filter by daycare.
+        Customize queryset based on user role (staff or customer) and filter by daycare if provided.
         """
-        request = self.request
-
-        # If the user is not authenticated, return no products
-        if not request.user.is_authenticated:
+        if not self.request.user.is_authenticated:
             return Product.objects.none()
 
-        # If the user is making a GET request, both staff and customers can view products
-        if request.method == 'GET':
-            queryset = Product.objects.all() 
+        if self.request.method == 'GET':
+            return self.get_customer_queryset()
 
-            # Optionally filter by daycare if a daycare ID is provided in the query params
-            daycare_id = request.query_params.get('daycare')
-            if daycare_id:
-                try:
-                    daycare_id = int(daycare_id)
-                    queryset = queryset.filter(daycare__id=daycare_id)
-                except ValueError:
-                    return Product.objects.none()  # Invalid daycare ID format
+        return self.get_staff_queryset()
 
-            return queryset
-
-        try:
-            staff_profile = StaffProfile.objects.get(user=request.user)
-        except StaffProfile.DoesNotExist:
-            return Product.objects.none()
-
-        # Restrict to products that belong to daycares the staff member is associated with
-        user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
-        queryset = Product.objects.filter(daycare__id__in=user_daycare_ids)
-
-        # Further filter by daycare if a specific one is requested
-        daycare_id = request.query_params.get('daycare')
+    def get_customer_queryset(self):
+        """
+        Return all products or filter by daycare for customers.
+        """
+        queryset = Product.objects.all()
+        daycare_id = self.request.query_params.get('daycare')
         if daycare_id:
-            try:
-                daycare_id = int(daycare_id)
-                if daycare_id in user_daycare_ids:
-                    queryset = queryset.filter(daycare__id=daycare_id)
-                else:
-                    return Product.objects.none()  # Staff not associated with this daycare
-            except ValueError:
-                return Product.objects.none()  # Invalid daycare ID format
-
+            queryset = queryset.filter(daycare__id=self.get_valid_daycare_id(daycare_id))
         return queryset
 
+    def get_staff_queryset(self):
+        """
+        Restrict products based on staff's associated daycares.
+        """
+        staff_profile = get_object_or_404(StaffProfile, user=self.request.user)
+        user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
+
+        queryset = Product.objects.filter(daycare__id__in=user_daycare_ids)
+        daycare_id = self.request.query_params.get('daycare')
+        if daycare_id:
+            queryset = queryset.filter(daycare__id=self.get_valid_daycare_id(daycare_id, user_daycare_ids))
+        return queryset
+
+    def get_valid_daycare_id(self, daycare_id, allowed_ids=None):
+        """
+        Validate and return daycare ID if valid; otherwise return an empty queryset.
+        """
+        try:
+            daycare_id = int(daycare_id)
+            if allowed_ids and daycare_id not in allowed_ids:
+                return None
+            return daycare_id
+        except ValueError:
+            return None
 
     def create(self, request, *args, **kwargs):
         """
-        Handle product creation and validate that the user is associated with the daycare.
+        Handle product creation and validate user association with the daycare.
         """
         daycare_id = request.data.get('daycare')
-
-        if not request.user.is_authenticated:
+        if not daycare_id or not request.user.is_authenticated:
             return Response(
-                {"error": "Authentication credentials were not provided."},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        if not daycare_id:
-            return Response(
-                {"error": "Daycare ID must be provided."},
+                {"error": "Authentication credentials and daycare ID are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            staff_profile = StaffProfile.objects.get(user=request.user)
-        except StaffProfile.DoesNotExist:
+        staff_profile = get_object_or_404(StaffProfile, user=request.user)
+        if staff_profile.role != 'O' or int(daycare_id) not in staff_profile.daycares.values_list('id', flat=True):
             return Response(
-                {"error": "Staff profile not found."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check if the user is an owner
-        if staff_profile.role != 'O':
-            return Response(
-                {"error": "You do not have permission to create a product."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        user_daycare_ids = staff_profile.daycares.values_list('id', flat=True)
-
-        if int(daycare_id) not in user_daycare_ids:
-            return Response(
-                {"error": "You cannot create a product for a daycare you are not associated with."},
+                {"error": "You do not have permission to create a product for this daycare."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         return super().create(request, *args, **kwargs)
+
 
 
 class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
