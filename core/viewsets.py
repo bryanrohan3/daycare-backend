@@ -1,20 +1,22 @@
 from django.shortcuts import render
-from rest_framework import viewsets, mixins
-from django.contrib.auth.models import User
-from rest_framework.authtoken.models import Token
-from .serializers import *
-from rest_framework.decorators import action
 from django.contrib.auth import authenticate, login
-from rest_framework.response import Response
-from rest_framework import status
-from .models import *
-from .permissions import *
-from django.utils.dateparse import parse_date
+from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
+from django.utils.dateparse import parse_date 
+from django.db.models import Q 
+
+from rest_framework import viewsets, mixins, status
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q 
-from datetime import timedelta
+
+from .helpers import *
+from .models import *
+from .permissions import *
+from .serializers import *
 
 
 class CustomPagination(PageNumberPagination):
@@ -72,7 +74,7 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
         queryset = super().get_queryset()
         user = self.request.user
         
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             staff_profile = user.staffprofile
             if staff_profile.role == 'O':
                 return queryset
@@ -88,7 +90,7 @@ class StaffProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixi
         Retrieve the staff profile of the currently authenticated user.
         """
         user = request.user
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             serializer = self.get_serializer(user.staffprofile)
             return Response(serializer.data)
         return Response({'detail': 'Staff profile not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -107,7 +109,7 @@ class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, m
             return CustomerProfile.objects.none()
 
         user = self.request.user
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             return self.filter_queryset_for_staff(user)
         
         return self.queryset.filter(user=user) 
@@ -150,7 +152,7 @@ class CustomerProfileViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, m
         Retrieve the customer profile of the currently authenticated user.
         """
         user = request.user
-        if hasattr(user, 'customerprofile'):
+        if user_has_customer_profile(user):
             serializer = self.get_serializer(user.customerprofile)
             return Response(serializer.data)
         return Response({'detail': 'Customer profile not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -165,7 +167,7 @@ class DaycareViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         queryset = Daycare.objects.all()  # Default queryset for all users
 
         if user.is_authenticated:
-            if hasattr(user, 'staffprofile'):
+            if user_has_staff_profile(user):
                 try:
                     staff_profile = user.staffprofile
                     # Staff filtering: only show daycares they work for
@@ -326,7 +328,7 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
 
         queryset = Roster.objects.none()
 
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             staff_profile = user.staffprofile
             queryset = Roster.objects.filter(staff=staff_profile, is_active=True)
 
@@ -375,19 +377,15 @@ class UnavailabilityViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mi
     def get_queryset(self):
         user = self.request.user
         
-        # Ensure the user is authenticated and has a staff profile
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             staff_profile = user.staffprofile
             
-            # If the user is an owner, show unavailability for all active staff in the owner's daycares
             if staff_profile.role == 'O':
-                owned_daycares = staff_profile.daycares.all()  # Fetch all daycares the owner is associated with
+                owned_daycares = staff_profile.daycares.all()
                 return StaffUnavailability.objects.filter(staff__daycares__in=owned_daycares, is_active=True).distinct()
             else:
-                # If the user is not an owner, only show their own active unavailability
                 return StaffUnavailability.objects.filter(staff=staff_profile, is_active=True)
         
-        # Return an empty queryset if the user does not have a staff profile
         return StaffUnavailability.objects.none()
 
     @action(detail=True, methods=['patch'], url_path='deactivate')
@@ -405,11 +403,7 @@ class UnavailabilityViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mi
         staff_profile = request.user.staffprofile
         serializer.save(staff=staff_profile)
 
-class PetViewSet(viewsets.GenericViewSet,
-                 mixins.CreateModelMixin,
-                 mixins.UpdateModelMixin,
-                 mixins.RetrieveModelMixin,
-                 mixins.ListModelMixin):
+class PetViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin):
     queryset = Pet.objects.all()
     serializer_class = PetSerializer
 
@@ -417,11 +411,9 @@ class PetViewSet(viewsets.GenericViewSet,
         user = self.request.user
         queryset = Pet.objects.filter(is_active=True).distinct()
 
-        if hasattr(user, 'customerprofile'):
-            # If the user is a customer, show all active pets including private ones
+        if user_has_customer_profile(user):
             queryset = queryset.filter(customers=user.customerprofile)
 
-        # Filter by pet_name if provided in the query parameters
         pet_name = self.request.query_params.get('pet_name', None)
         if pet_name:
             queryset = queryset.filter(pet_name__icontains=pet_name)
@@ -478,7 +470,7 @@ class PetNoteViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if hasattr(user, 'customerprofile'):
+        if user_has_customer_profile(user):
             return PetNote.objects.filter(customers=user.customerprofile)
         return PetNote.objects.none()
 
@@ -493,9 +485,9 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
         user = self.request.user
         queryset = Booking.objects.all().filter(is_active=True, is_waitlist=False)  
 
-        if hasattr(user, 'customerprofile'):
+        if user_has_customer_profile(user):
             queryset = queryset.filter(customer=user.customerprofile)
-        elif hasattr(user, 'staffprofile'):
+        elif user_has_staff_profile(user):
             queryset = queryset.filter(daycare__in=user.staffprofile.daycares.all())
         
         daycare_id = self.request.query_params.get('daycare')
@@ -558,9 +550,9 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
             )
 
     def _get_customer(self, user):
-        if hasattr(user, 'customerprofile'):
+        if user_has_customer_profile(user):
             return user.customerprofile
-        elif hasattr(user, 'staffprofile'):
+        elif user_has_staff_profile(user):
             customer_id = self.request.data.get('customer')
             return self._get_object(CustomerProfile, customer_id)
         else:
@@ -571,7 +563,7 @@ class BookingViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Re
             raise PermissionDenied("You do not own this pet.")
 
     # def _check_daycare_association(self, user, daycare):
-    #     if hasattr(user, 'staffprofile'):
+    #     if user_has_staff_profile(user):
     #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
     #         if daycare.id not in user_daycare_ids:
     #             raise PermissionDenied("You are not associated with this daycare.")
@@ -649,7 +641,7 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             return BlacklistedPet.objects.filter(daycare__in=user.staffprofile.daycares.all())
         return BlacklistedPet.objects.none()
 
@@ -683,7 +675,7 @@ class BlacklistedPetViewSet(viewsets.ModelViewSet):
         return Response({'status': 'Pet unblacklisted successfully.'})
 
     # def _check_daycare_association(self, user, daycare):
-    #     if hasattr(user, 'staffprofile'):
+    #     if user_has_staff_profile(user):
     #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
     #         if daycare.id not in user_daycare_ids:
     #             raise PermissionDenied("You are not associated with this daycare.")
@@ -708,10 +700,10 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
 
         daycare_id = self.request.query_params.get('daycare')
 
-        if hasattr(user, 'staffprofile'):
+        if user_has_staff_profile(user):
             queryset = Waitlist.objects.filter(booking__daycare__in=user.staffprofile.daycares.all(), booking__is_waitlist=True)
         
-        elif hasattr(user, 'customerprofile'):
+        elif user_has_customer_profile(user):
             queryset = Waitlist.objects.filter(booking__customer=user.customerprofile)
 
         if daycare_id:
@@ -720,7 +712,7 @@ class WaitlistViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.R
         return queryset
 
     # def _check_daycare_association(self, user, daycare):
-    #     if hasattr(user, 'staffprofile'):
+    #     if user_has_staff_profile(user):
     #         user_daycare_ids = user.staffprofile.daycares.values_list('id', flat=True)
     #         if daycare.id not in user_daycare_ids:
     #             raise PermissionDenied("You are not associated with this daycare.")
