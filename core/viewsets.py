@@ -284,26 +284,31 @@ class ProductViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Re
         return super().create(request, *args, **kwargs)
 
 
-
 class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.CreateModelMixin):
     queryset = Roster.objects.all()
     serializer_class = RosterSerializer
     permission_classes = [IsOwner | IsStaff]
-
+    
     def get_permissions(self):
-        if self.request.method in ['PUT', 'PATCH', 'POST']:
-            permission_classes = [IsOwner]
-        else:
-            permission_classes = [IsStaff]
-        return [permission() for permission in permission_classes]
+        method_permissions = {
+            'POST': [IsOwner],
+            'PUT': [IsOwner],
+            'PATCH': [IsOwner],
+        }
+        return [permission() for permission in method_permissions.get(self.request.method, [IsStaff])]
+        
 
     def get_queryset(self):
-        user = self.request.user
-        if not user.is_authenticated:
+        if not self.request.user.is_authenticated:
             return Roster.objects.none()
 
-        queryset = Roster.objects.none()
+        queryset = self.get_base_queryset()
+        queryset = self.filter_by_daycare(queryset)
+        queryset = self.filter_by_date_range(queryset)
+        return queryset.distinct()
 
+    def get_base_queryset(self):
+        user = self.request.user
         if user_has_staff_profile(user):
             staff_profile = user.staffprofile
             queryset = Roster.objects.filter(staff=staff_profile, is_active=True)
@@ -313,28 +318,27 @@ class RosterViewSet(viewsets.GenericViewSet, mixins.UpdateModelMixin, mixins.Ret
                 owner_queryset = Roster.objects.filter(daycare__in=owned_daycares, is_active=True)
                 queryset = queryset | owner_queryset
 
-        # Daycare filtering based on query parameters
-        daycare_id = self.request.query_params.get('daycare', None)
+            return queryset
+        return Roster.objects.none()
+
+    def filter_by_daycare(self, queryset):
+        daycare_id = self.request.query_params.get('daycare')
         if daycare_id:
             queryset = queryset.filter(daycare__id=daycare_id)
+        return queryset
 
-        # Fetch date range from query parameters
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
+    def filter_by_date_range(self, queryset):
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
 
         if start_date and end_date:
-            try:
-                start_shift = parse_date(start_date)
-                end_shift = parse_date(end_date)
+            start_shift = parse_date(start_date)
+            end_shift = parse_date(end_date)
 
-                if start_shift and end_shift:
-                    end_shift = timezone.datetime.combine(end_shift, timezone.datetime.max.time())
-                    queryset = queryset.filter(start_shift__gte=start_shift, start_shift__lte=end_shift)
-
-            except ValueError:
-                return Roster.objects.none()  
-
-        return queryset.distinct()
+            if start_shift and end_shift:
+                end_shift = timezone.datetime.combine(end_shift, timezone.datetime.max.time())
+                queryset = queryset.filter(start_shift__gte=start_shift, start_shift__lte=end_shift)
+        return queryset
 
     @action(detail=True, methods=['patch'], url_path='deactivate')
     def deactivate(self, request, pk=None):
