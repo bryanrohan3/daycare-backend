@@ -565,10 +565,12 @@ class PostSerializer(serializers.ModelSerializer):
     )
     pet_names = serializers.SerializerMethodField()
     daycare_name = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
+    like_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ['id', 'user', 'daycare', 'daycare_name', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets', 'pet_names']
+        fields = ['id', 'user', 'daycare', 'daycare_name', 'caption', 'date_time_created', 'is_active', 'status', 'tagged_pets', 'pet_names', 'liked', 'like_id']
         read_only_fields = ['user', 'status']
 
     def validate_tagged_pets(self, tagged_pets):
@@ -580,6 +582,19 @@ class PostSerializer(serializers.ModelSerializer):
     
     def get_pet_names(self, obj):
         return BasicPetNameSerializer(obj.tagged_pets.all(), many=True).data
+    
+    def get_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Like.objects.filter(post=obj, user=request.user).exists()
+        return False
+
+    def get_like_id(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            like = Like.objects.filter(post=obj, user=request.user).first()
+            return like.id if like else None
+        return None
 
 
 class LikeSerializer(serializers.ModelSerializer):
