@@ -299,13 +299,13 @@ class RosterSerializer(serializers.ModelSerializer):
         shift_day_of_week = start_shift.weekday()
 
         # Check recurring unavailability
-        recurring_unavailability = staff.unavailability_days.filter(is_recurring=True)
+        recurring_unavailability = staff.unavailability_days.filter(is_recurring=True, is_active=True)
         for unavailability in recurring_unavailability:
             if unavailability.day_of_week == shift_day_of_week:
                 raise serializers.ValidationError(f"{staff} is unavailable on {unavailability.get_day_of_week_display()} (Recurring).")
 
         # Check one-off unavailability
-        one_off_unavailability = staff.unavailability_days.filter(is_recurring=False)
+        one_off_unavailability = staff.unavailability_days.filter(is_recurring=False, is_active=True)
         for unavailability in one_off_unavailability:
             if unavailability.date == start_shift.date():
                 raise serializers.ValidationError(f"{staff} is unavailable on {unavailability.date} (One-off).")
